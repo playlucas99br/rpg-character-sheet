@@ -197,7 +197,7 @@ b {
 .section-gap-small {
   margin-top: 20px;
 }
-.book-library { overflow:hidden; border:1px solid #3e4941; border-radius:16px; background:linear-gradient(145deg,#202824 0%,#171c1b 50%,#131717 100%); box-shadow:0 24px 80px #00000028; }
+.book-library { min-width:0; overflow:hidden; border:1px solid #3e4941; border-radius:16px; background:linear-gradient(145deg,#202824 0%,#171c1b 50%,#131717 100%); box-shadow:0 24px 80px #00000028; }
 .book-library-hero { min-height:164px; display:flex; align-items:center; gap:20px; padding:21px 24px; position:relative; isolation:isolate; overflow:hidden; border-bottom:1px solid #394238; background:radial-gradient(circle at 80% 20%,#6d7d4644,transparent 35%),linear-gradient(110deg,#202c25,#1a201d); }
 .book-library-hero:after { content:""; position:absolute; inset:0 0 0 auto; width:55%; z-index:-1; opacity:.4; background:url('/art/forest.svg') center/cover; mask-image:linear-gradient(90deg,transparent,black); }
 .book-cover { width:82px; height:118px; flex:0 0 auto; border-radius:4px 8px 8px 4px; padding:16px 9px; display:flex; flex-direction:column; justify-content:end; position:relative; overflow:hidden; background:linear-gradient(155deg,#2c3a30,#101714 70%); border:1px solid #91a46a88; box-shadow:12px 14px 24px #0007; color:#e6e6d1; letter-spacing:1px; font-family:Manrope,sans-serif; }
