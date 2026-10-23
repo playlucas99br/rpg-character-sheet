@@ -13,6 +13,7 @@ const { fixture } = await import("./request-context.mjs");
 const { getCurrentUser, authProvider } = await import("../app/auth.ts");
 const { GET, POST } = await import("../app/api/game/route.ts");
 const { safeReturnPath } = await import("../lib/auth/return-path.ts");
+const { isSameOrigin } = await import("../lib/auth/request-origin.ts");
 const origin = "https://nexo.example.test";
 test("Vercel rejects forged ChatGPT identity headers and claimed account IDs without a Supabase session", async () => {
   fixture.headers = new Headers({ "oai-authenticated-user-id": "victim", "oai-authenticated-user-email": "victim@example.invalid" });
@@ -24,6 +25,8 @@ test("Vercel rejects forged ChatGPT identity headers and claimed account IDs wit
   assert.equal((await POST(post)).status, 401);
 });
 test("Vercel keeps cross-site writes blocked and authentication returns stay on the app", async () => {
+  assert.equal(isSameOrigin(new Request("http://0.0.0.0:3010/api/auth", { headers: { Host: "localhost:3010", Origin: "http://localhost:3010" } })), true);
+  assert.equal(isSameOrigin(new Request(`${origin}/api/auth`, { headers: { Host: "nexo.example.test", Origin: "http://nexo.example.test" } })), false);
   assert.equal((await POST(new Request(`${origin}/api/game`, { method: "POST", headers: { Origin: "https://attacker.example" }, body: "{}" }))).status, 403);
   for (const value of ["https://attacker.example", "//attacker.example", "/\\attacker.example", "/auth/signout", "/api/game"]) assert.equal(safeReturnPath(value), "/");
   assert.equal(safeReturnPath("/auth/password"), "/auth/password");

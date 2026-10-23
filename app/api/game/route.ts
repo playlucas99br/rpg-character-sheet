@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { getCurrentUser, authProvider } from "../../auth";
+import { isSameOrigin } from "../../../lib/auth/request-origin";
 import {
   ensureProfile,
   workspaceFor,
@@ -60,8 +61,7 @@ export async function GET(request: Request) {
 }
 export async function POST(request: Request) {
   try {
-    const origin = request.headers.get("origin");
-    if (!origin || origin !== new URL(request.url).origin)
+    if (!isSameOrigin(request))
       throw new GameError("Origem da solicitação inválida.", 403);
     if (!request.headers.get("content-type")?.includes("application/json"))
       throw new GameError("Envie dados em JSON.", 415);

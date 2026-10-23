@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { authProvider } from "../../auth";
 import { createAuthClient } from "../../../lib/auth/server";
+import { isSameOrigin } from "../../../lib/auth/request-origin";
 
 export const dynamic = "force-dynamic";
 const email = z.string().trim().email().max(254);
@@ -16,8 +17,8 @@ const reply = (body: unknown, status = 200) => Response.json(body, { status, hea
 
 export async function POST(request: Request) {
   if (authProvider() !== "supabase") return reply({ error: "Acesso indisponível nesta versão." }, 404);
-  const origin = new URL(request.url).origin;
-  if (request.headers.get("origin") !== origin) return reply({ error: "Origem da solicitação inválida." }, 403);
+  if (!isSameOrigin(request)) return reply({ error: "Origem da solicitação inválida." }, 403);
+  const origin = request.headers.get("origin")!;
   if (Number(request.headers.get("content-length") || 0) > 8000) return reply({ error: "Solicitação muito grande." }, 413);
   try {
     const text = await request.text();
