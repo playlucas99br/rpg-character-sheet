@@ -41,5 +41,9 @@ yarn-error.log*
 /outputs/
 /work/
 
+# Local, licensed campaign books. These are served only in local development;
+# production books belong in the private R2 bucket.
+/public/library/
+
 # OS metadata
 .DS_Store

@@ -65,6 +65,19 @@ export const sheetSchema = z
         }),
       )
       .max(30),
+    rituals: z
+      .array(
+        z.object({
+          id: shortText,
+          name: shortText,
+          element: z.enum(["Conhecimento", "Energia", "Morte", "Sangue", "Medo"]),
+          circle: z.number().int().min(1).max(4),
+          summary: z.string().max(500),
+          sourcePage: z.number().int().min(1).max(400),
+        }),
+      )
+      .max(100)
+      .default([]),
     abilities: z
       .array(
         z.object({

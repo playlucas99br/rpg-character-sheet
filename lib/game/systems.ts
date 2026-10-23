@@ -243,6 +243,7 @@ export function newSheet(
       bonus: system === "cthulhu" ? 20 : 0,
     })),
     attacks: [],
+    rituals: [],
     abilities: [],
     notes: "",
     inventory: "",

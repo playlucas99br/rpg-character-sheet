@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import type { Campaign, Sheet, SystemId } from "../lib/game/types";
 import { SYSTEMS, systemById } from "../lib/game/systems";
+import { ORDEM_RITUALS, ORDEM_WEAPONS } from "../lib/game/ordem-library";
 import {
   Button,
   Empty,
@@ -351,6 +352,8 @@ export function NewSheetForm({
     ownerId: string;
     name: string;
     type: Sheet["type"];
+    ritualId?: string;
+    weaponId?: string;
   }) => Promise<boolean>;
   onClose: () => void;
 }) {
@@ -361,7 +364,9 @@ export function NewSheetForm({
       initialCampaignId || eligible[0]?.id || "",
     ),
     [name, setName] = useState(""),
-    [ownerId, setOwnerId] = useState(userId);
+    [ownerId, setOwnerId] = useState(userId),
+    [ritualId, setRitualId] = useState(""),
+    [weaponId, setWeaponId] = useState("");
   const campaign = eligible.find((c) => c.id === campaignId);
   return (
     <Modal
@@ -380,7 +385,7 @@ export function NewSheetForm({
       <form
         onSubmit={async (e) => {
           e.preventDefault();
-          if (await onCreate({ campaignId, ownerId, name, type })) onClose();
+          if (await onCreate({ campaignId, ownerId, name, type, ritualId, weaponId })) onClose();
         }}
       >
         <div className="modal-body">
@@ -441,6 +446,22 @@ export function NewSheetForm({
                 <strong>{systemById(campaign.system).name}</strong>. Atributos e
                 perícias já vêm organizados para você começar.
               </p>
+            </div>
+          )}
+          {campaign?.system === "ordem" && type === "character" && (
+            <div className="form-grid">
+              <Field label="Ritual inicial (opcional)">
+                <select value={ritualId} onChange={(e) => setRitualId(e.target.value)}>
+                  <option value="">Escolher depois na biblioteca</option>
+                  {ORDEM_RITUALS.map((ritual) => <option value={ritual.id} key={ritual.id}>{ritual.name} · {ritual.element} {ritual.circle}º</option>)}
+                </select>
+              </Field>
+              <Field label="Arma inicial (opcional)">
+                <select value={weaponId} onChange={(e) => setWeaponId(e.target.value)}>
+                  <option value="">Escolher depois na biblioteca</option>
+                  {ORDEM_WEAPONS.map((weapon) => <option value={weapon.id} key={weapon.id}>{weapon.name} · {weapon.damage}</option>)}
+                </select>
+              </Field>
             </div>
           )}
         </div>

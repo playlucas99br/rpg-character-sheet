@@ -13,6 +13,7 @@ import { canEditSheet, canSeeRoll } from "./access";
 import { campaignSchema, sheetSchema } from "./validation";
 import { newSheet, systemById } from "./systems";
 import { resolveRoll } from "./dice";
+import { ORDEM_RITUALS, ORDEM_WEAPONS } from "./ordem-library";
 
 export class GameError extends Error {
   status: number;
@@ -53,6 +54,7 @@ type SheetRow = {
 function hydrateSheet(row: SheetRow): Sheet {
   return {
     ...JSON.parse(row.data),
+    rituals: JSON.parse(row.data).rituals ?? [],
     id: row.id,
     campaignId: row.campaign_id,
     ownerId: row.owner_id,
@@ -344,6 +346,29 @@ export async function mutate(user: User, input: Record<string, unknown>) {
     if (!c) throw new GameError("Campanha não encontrada.", 404);
     const sheet = newSheet(c.system, campaignId, ownerId, user.name, type);
     sheet.name = z.string().trim().min(1).max(100).parse(input.name);
+    if (c.system === "ordem" && type === "character") {
+      const ritualId = z.string().max(120).optional().parse(input.ritualId);
+      const weaponId = z.string().max(120).optional().parse(input.weaponId);
+      const ritual = ORDEM_RITUALS.find((item) => item.id === ritualId);
+      const weapon = ORDEM_WEAPONS.find((item) => item.id === weaponId);
+      if (ritual) sheet.rituals = [ritual];
+      if (weapon) {
+        const skill = sheet.skills.find((item) =>
+          weapon.category.includes("corpo a corpo")
+            ? item.name === "Luta"
+            : item.name === "Pontaria",
+        ) ?? sheet.skills[0];
+        if (skill) sheet.attacks = [{
+          id: `library-${weapon.id}`,
+          name: weapon.name,
+          skillId: skill.id,
+          damage: weapon.damage,
+          range: weapon.range,
+          critical: weapon.critical,
+          description: `${weapon.category}. Adicionada da biblioteca de Ordem Paranormal.`,
+        }];
+      }
+    }
     await db
       .prepare(
         "INSERT INTO sheets (id,campaign_id,owner_id,type,data,version,updated_at) VALUES (?,?,?,?,?,1,?)",

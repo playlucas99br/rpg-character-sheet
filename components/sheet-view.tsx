@@ -454,6 +454,24 @@ export default function SheetView({
                   </div>
                 )}
               </div>
+              {sheet.rituals?.length > 0 && (
+                <div className="panel section-gap-small">
+                  <div className="panel-heading">
+                    <div>
+                      <h3><Sparkles size={17} /> Rituais conhecidos</h3>
+                      <p>Adicionados pela biblioteca da mesa.</p>
+                    </div>
+                  </div>
+                  <div className="ritual-chip-list">
+                    {sheet.rituals.map((ritual) => (
+                      <div className="ritual-chip" key={ritual.id}>
+                        <strong>{ritual.name}</strong>
+                        <span>{ritual.element} · {ritual.circle}º círculo</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="panel section-gap-small">
                 <div className="panel-heading">
                   <div>

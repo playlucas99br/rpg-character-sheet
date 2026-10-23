@@ -42,6 +42,7 @@ import type {
 import { createDemo } from "../lib/game/demo";
 import { newSheet, SYSTEMS, systemById } from "../lib/game/systems";
 import { resolveRoll } from "../lib/game/dice";
+import { ORDEM_RITUALS, ORDEM_WEAPONS } from "../lib/game/ordem-library";
 import { campaignSchema, sheetSchema } from "../lib/game/validation";
 import { canReadSheet } from "../lib/game/access";
 import {
@@ -66,6 +67,7 @@ import {
 } from "./campaigns";
 import { DicePanel, RollHistory } from "./dice-panel";
 import SheetView from "./sheet-view";
+import OrdemLibrary from "./ordem-library";
 
 type Page =
   | "dashboard"
@@ -144,6 +146,15 @@ function demoMutation(
       ),
       name: String(input.name).trim(),
     };
+    if (c.system === "ordem" && input.ritualId) {
+      const ritual = ORDEM_RITUALS.find((item) => item.id === input.ritualId);
+      if (ritual) sheet.rituals = [ritual];
+    }
+    if (c.system === "ordem" && input.weaponId) {
+      const weapon = ORDEM_WEAPONS.find((item) => item.id === input.weaponId);
+      const skill = sheet.skills.find((item) => weapon?.category.includes("corpo a corpo") ? item.name === "Luta" : item.name === "Pontaria") ?? sheet.skills[0];
+      if (weapon && skill) sheet.attacks = [{ id: `library-${weapon.id}`, name: weapon.name, skillId: skill.id, damage: weapon.damage, range: weapon.range, critical: weapon.critical, description: `${weapon.category}. Adicionada da biblioteca de Ordem Paranormal.` }];
+    }
     if (!sheet.name) throw new Error("Informe o nome.");
     state.sheets.unshift(sheet);
     result = { id: sheet.id };
@@ -1295,6 +1306,64 @@ export default function NexoApp({
                       descanso e outras automações poderão evoluir nas próximas
                       versões.
                     </p>
+                  </div>
+                  <div className="section-gap">
+                    <OrdemLibrary
+                      sheets={sheets.filter(
+                        (sheet) =>
+                          sheet.ownerId === user.id && sheet.system === "ordem",
+                      )}
+                      onAddRitual={async (sheet, ritual) => {
+                        const knownRituals = sheet.rituals ?? [];
+                        if (knownRituals.some((item) => item.id === ritual.id)) {
+                          notify("Este ritual já está na ficha.", true);
+                          return;
+                        }
+                        const result = await mutation({
+                          action: "update_sheet",
+                          sheetId: sheet.id,
+                          version: sheet.version,
+                          sheet: { ...sheet, rituals: [...knownRituals, ritual] },
+                        });
+                        if (result) notify(`${ritual.name} adicionado a ${sheet.name}.`);
+                      }}
+                      onAddWeapon={async (sheet, weapon) => {
+                        if (sheet.attacks.some((item) => item.name === weapon.name)) {
+                          notify("Esta arma já está na ficha.", true);
+                          return;
+                        }
+                        const skill = sheet.skills.find((item) =>
+                          weapon.category.includes("corpo a corpo")
+                            ? item.name === "Luta"
+                            : item.name === "Pontaria",
+                        ) ?? sheet.skills[0];
+                        if (!skill) {
+                          notify("A ficha não possui uma perícia de ataque válida.", true);
+                          return;
+                        }
+                        const result = await mutation({
+                          action: "update_sheet",
+                          sheetId: sheet.id,
+                          version: sheet.version,
+                          sheet: {
+                            ...sheet,
+                            attacks: [
+                              ...sheet.attacks,
+                              {
+                                id: `library-${weapon.id}`,
+                                name: weapon.name,
+                                skillId: skill.id,
+                                damage: weapon.damage,
+                                range: weapon.range,
+                                critical: weapon.critical,
+                                description: `${weapon.category}. Adicionada da biblioteca de Ordem Paranormal.`,
+                              },
+                            ],
+                          },
+                        });
+                        if (result) notify(`${weapon.name} adicionada a ${sheet.name}.`);
+                      }}
+                    />
                   </div>
                 </>
               )}
