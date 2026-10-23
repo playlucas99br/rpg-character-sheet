@@ -55,7 +55,11 @@ export type KnownWeapon = {
   damage: string;
   range: string;
   critical: number;
+  criticalDetail?: string;
+  damageType?: string;
+  slots?: number;
   sourcePage: number;
+  description?: string;
 };
 export type Sheet = {
   id: string;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowUpRight, BookOpen, ExternalLink, Layers3, Plus, Search, Swords, Sparkles } from "lucide-react";
+import { ArrowUpRight, BookOpen, Layers3, Plus, Search, Swords, Sparkles } from "lucide-react";
 import { ORDEM_BOOK, ORDEM_RITUALS, ORDEM_WEAPONS } from "../lib/game/ordem-library";
 import type { KnownRitual, KnownWeapon, Sheet } from "../lib/game/types";
 import { Button, Field, Modal } from "./ui";
@@ -12,43 +12,39 @@ function RitualModal({ ritual, onClose }: { ritual: KnownRitual; onClose: () => 
     ["Execução", details.execution], ["Alcance", details.range], ["Alvo", details.target],
     ["Área", details.area], ["Efeito", details.effect], ["Duração", details.duration], ["Resistência", details.resistance],
   ].filter((fact): fact is [string, string] => Boolean(fact[1]));
-  const source = `${ORDEM_BOOK.localPdf}#page=${ritual.sourcePage}&zoom=page-width`;
   return <Modal title={ritual.name} subtitle={`${ritual.element} · ${ritual.circle}º círculo`} onClose={onClose} wide>
     <div className="modal-body ritual-modal-body">
       <section className="ritual-facts" aria-label={`Dados gerais de ${ritual.name}`}>
         <div className="ritual-detail-heading"><Sparkles size={15} /><span>Dados gerais</span></div>
         <dl>{facts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
       </section>
-      <section className="ritual-source">
-        <div className="ritual-detail-heading"><BookOpen size={15} /><span>Descrição original no livro</span></div>
-        <p className="muted small">A página é exibida sem conversão de texto para preservar a ortografia e a diagramação do livro.</p>
-        <iframe title={`Descrição de ${ritual.name}`} src={source} className="ritual-source-reader" />
+      <section className="ritual-description">
+        <div className="ritual-detail-heading"><BookOpen size={15} /><span>Descrição completa</span></div>
+        {details.description.map((paragraph, index) => <p key={index}>{paragraph}</p>)}
       </section>
-      <a className="text-button" href={source} target="_blank" rel="noreferrer">Abrir esta página em outra aba <ExternalLink size={14} /></a>
     </div>
   </Modal>;
 }
 
 function WeaponModal({ weapon, onClose }: { weapon: KnownWeapon; onClose: () => void }) {
-  const source = `${ORDEM_BOOK.localPdf}#page=${weapon.sourcePage}&zoom=page-width`;
   const facts = [
     ["Categoria", weapon.category],
     ["Dano", weapon.damage],
     ["Alcance", weapon.range],
-    ["Crítico", String(weapon.critical)],
-  ];
+    ["Crítico", weapon.criticalDetail ?? String(weapon.critical)],
+    ["Tipo", weapon.damageType],
+    ["Espaços", weapon.slots ? String(weapon.slots) : undefined],
+  ].filter((fact): fact is [string, string] => Boolean(fact[1]));
   return <Modal title={weapon.name} subtitle={weapon.category} onClose={onClose} wide>
     <div className="modal-body ritual-modal-body">
       <section className="ritual-facts" aria-label={`Dados gerais de ${weapon.name}`}>
         <div className="ritual-detail-heading"><Swords size={15} /><span>Dados gerais</span></div>
         <dl>{facts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
       </section>
-      <section className="ritual-source">
-        <div className="ritual-detail-heading"><BookOpen size={15} /><span>Referência original no livro</span></div>
-        <p className="muted small">A página é exibida sem conversão de texto para preservar a ortografia e a diagramação do livro.</p>
-        <iframe title={`Referência de ${weapon.name}`} src={source} className="ritual-source-reader" />
+      <section className="ritual-description weapon-description">
+        <div className="ritual-detail-heading"><BookOpen size={15} /><span>Descrição da arma</span></div>
+        <p>{weapon.description ?? `${weapon.name} é uma arma ${weapon.category.toLowerCase()}.`}</p>
       </section>
-      <a className="text-button" href={source} target="_blank" rel="noreferrer">Abrir esta página em outra aba <ExternalLink size={14} /></a>
     </div>
   </Modal>;
 }
@@ -89,9 +85,7 @@ export default function OrdemLibrary({
           <p>O livro de regras da sua campanha, agora como uma central de consulta rápida.</p>
           <div className="book-meta"><span>{ORDEM_BOOK.edition}</span><i /> <span>{ORDEM_BOOK.pages} páginas</span><i /> <span>{ORDEM_RITUALS.length} rituais</span></div>
         </div>
-        <a className="button secondary" href={readerLink} target="_blank" rel="noreferrer">
-          <ExternalLink size={15} /> Abrir livro
-        </a>
+        <button className="button secondary" onClick={() => setTab("reader")}><BookOpen size={15} /> Abrir leitor</button>
       </div>
       <div className="sheet-tabs book-tabs" role="tablist" aria-label="Conteúdo do livro">
         <button role="tab" aria-selected={tab === "reader"} onClick={() => setTab("reader")}><BookOpen size={15} /> Leitor do PDF</button>
@@ -144,7 +138,7 @@ export default function OrdemLibrary({
                       return <article className="reference-card" key={ritual.id}>
                         <div className={`reference-mark ${ritual.element.toLowerCase()}`}><Sparkles size={17} /></div>
                         <button className="reference-toggle" aria-haspopup="dialog" onClick={() => setSelectedRitual(ritual)}><span className="reference-kicker">{ritual.element} · {ritual.circle}º círculo</span><strong className="reference-title">{ritual.name}</strong><p>{ritual.summary}</p><span className="expand-label">Ver detalhes<ArrowUpRight size={14} /></span></button>
-                        <div className="reference-actions"><a aria-label={`Abrir ${ritual.name} no livro`} href={`${ORDEM_BOOK.localPdf}#page=${ritual.sourcePage}`} target="_blank" rel="noreferrer"><ExternalLink size={14} /></a><Button variant="secondary" disabled={!target} onClick={() => target && onAddRitual(target, ritual)}><Plus size={14} /> Adicionar</Button></div>
+                        <div className="reference-actions"><Button variant="secondary" disabled={!target} onClick={() => target && onAddRitual(target, ritual)}><Plus size={14} /> Adicionar</Button></div>
                       </article>;
                     })}
                   </div>
@@ -158,7 +152,6 @@ export default function OrdemLibrary({
                 <div className="reference-mark weapon"><Swords size={17} /></div>
                 <button className="reference-toggle" aria-haspopup="dialog" onClick={() => setSelectedWeapon(weapon)}><span className="reference-kicker">{weapon.category}</span><strong className="reference-title">{entry.name}</strong><p>{weapon.damage} · {weapon.range} · crítico {weapon.critical}</p><span className="expand-label">Ver detalhes<ArrowUpRight size={14} /></span></button>
                 <div className="reference-actions">
-                  <a aria-label={`Abrir ${weapon.name} no livro`} href={`${ORDEM_BOOK.localPdf}#page=${weapon.sourcePage}`} target="_blank" rel="noreferrer"><ExternalLink size={14} /></a>
                   <Button variant="secondary" disabled={!target} onClick={() => target && onAddWeapon(target, weapon)}><Plus size={14} /> Adicionar</Button>
                 </div>
               </article>;
