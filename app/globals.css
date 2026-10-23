@@ -6012,6 +6012,11 @@ body { overflow-x: hidden; }
 .reference-toggle > p { white-space: normal; overflow: visible; text-overflow: clip; }
 .reference-detail { overflow-wrap: anywhere; }
 .ritual-description p { max-width: 78ch; }
+.ritual-modal-body { display: grid; gap: 16px; }
+.ritual-source { overflow: hidden; border: 1px solid #42503d; border-radius: 10px; background: #111614; }
+.ritual-source > p { margin: 0; padding: 11px 13px 0; }
+.ritual-source-reader { display: block; width: 100%; height: min(62dvh, 760px); margin-top: 10px; border: 0; background: #0a0c0b; }
+.ritual-modal-body > .text-button { width: max-content; }
 .library-add-target .field { margin-bottom: 0; }
 .library-add-target p { min-width: 0; }
 
@@ -6095,6 +6100,7 @@ body { overflow-x: hidden; }
   .ritual-facts dl { grid-template-columns: 1fr; }
   .ritual-facts dl > div, .ritual-facts dl > div:nth-child(3n), .ritual-facts dl > div:nth-child(2n) { border-right: 0; border-bottom: 1px solid #3c4a39; }
   .ritual-facts dl > div:last-child { border-bottom: 0; }
+  .ritual-source-reader { height: 50dvh; min-height: 360px; }
   .pdf-reader { height: min(72vh, 620px); }
 }
 
