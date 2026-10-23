@@ -6,6 +6,17 @@ import { ORDEM_BOOK, ORDEM_RITUALS, ORDEM_WEAPONS } from "../lib/game/ordem-libr
 import type { KnownRitual, KnownWeapon, Sheet } from "../lib/game/types";
 import { Button, Field } from "./ui";
 
+function readableRitualText(text: string) {
+  return text
+    .replace(/\u00ad/g, "")
+    .replace(/(Discente|Verdadeiro)\s*\(/g, "$1 (")
+    .replace(/([,;:])(?=[A-Za-zÀ-ÿ])/g, "$1 ")
+    .replace(/(\d)(?=(?:PV|PE|m\b|Requer\b))/g, "$1 ")
+    .replace(/\bquerar\b/gi, "querer")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export default function OrdemLibrary({
   sheets,
   onAddRitual,
@@ -52,7 +63,7 @@ export default function OrdemLibrary({
       </div>
       {tab === "reader" && (
         <div className="pdf-reader-wrap">
-          <p className="muted small">Use a busca, zoom e paginação do leitor. Este arquivo existe apenas na prévia local da mesa.</p>
+          <p className="muted small">Use a busca, o zoom e a paginação do leitor. Este arquivo está disponível apenas na prévia local da mesa.</p>
           <iframe title="Leitor do livro Ordem Paranormal" src={readerLink} className="pdf-reader" />
         </div>
       )}
@@ -117,7 +128,7 @@ export default function OrdemLibrary({
                           </section>
                           <section className="ritual-description">
                             <div className="ritual-detail-heading"><BookOpen size={15} /><span>Descrição completa</span></div>
-                            {details.description.map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+                            {details.description.map((paragraph, index) => <p key={index}>{readableRitualText(paragraph)}</p>)}
                           </section>
                           <a href={`${ORDEM_BOOK.localPdf}#page=${ritual.sourcePage}`} target="_blank" rel="noreferrer">Conferir no livro · página {ritual.sourcePage} <ExternalLink size={13} /></a>
                         </div>}
