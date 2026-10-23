@@ -17,7 +17,9 @@ O registro de sistemas deve permitir novas campanhas no futuro, incluindo D&D, C
 
 ## Identidade, dados e privacidade
 
-- A implementação hospedada atual usa login com ChatGPT e Cloudflare D1 pelo Sites.
+- A implementação hospedada atual mantém o login com ChatGPT pelo Sites e usa Supabase/PostgreSQL para gravação. O usuário pediu explicitamente a criação do projeto Supabase após a etapa inicial de login.
+- Projeto Supabase: `nexo-rpg`, São Paulo, na organização `playlucas99br's Org`. O projeto antigo inativo dessa organização foi preservado.
+- O D1 é a origem da transferência inicial e continua disponível no desenvolvimento. A importação não apaga a origem e deve preservar IDs, proprietários, permissões e versões das fichas.
 - Perfis são criados a partir da identidade autenticada; não há senhas próprias armazenadas pelo aplicativo.
 - O nome de exibição é editável. Ele não determina permissões.
 - Os papéis de mestre e jogador pertencem a cada campanha. Ser mestre em uma não permite acessar outras.
@@ -27,7 +29,7 @@ O registro de sistemas deve permitir novas campanhas no futuro, incluindo D&D, C
 - O repositório é público; dados reais, arquivos de banco, credenciais, chaves e livros locais ficam fora do Git.
 - A demonstração usa apenas exemplos no navegador; fichas reais ficam no banco do servidor.
 - Rascunhos temporários nesta aba protegem edições interrompidas, sem substituir o salvamento da ficha na conta.
-- Uma mudança para login próprio de e-mail/senha ou outro provedor precisa preservar os vínculos e as permissões das fichas. Esta etapa mantém o provedor existente.
+- Uma mudança para login próprio de e-mail/senha ou outro provedor de identidade precisa preservar os vínculos e as permissões das fichas. Adicionar o Supabase para gravação não troca automaticamente o login do Sites.
 
 ## Validação necessária
 
