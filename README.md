@@ -5,6 +5,9 @@ Um espaço para organizar campanhas, criar personagens e jogar com fichas intera
 ## O que já funciona
 
 - Login com ChatGPT e dados vinculados à identidade da conta.
+- Tela de entrada com criação do perfil no primeiro acesso e demonstração escolhida explicitamente.
+- Indicador de conexão e salvamento confirmado pela API; falhas e sessões encerradas nunca aparecem como salvamento concluído.
+- Recuperação de rascunhos de edição nesta aba, separados por conta e ficha, com resolução de conflitos entre janelas.
 - Campanhas independentes, com papéis de mestre e jogador por campanha.
 - Convite por código, renovação do convite e remoção de participantes.
 - Jogadores acessam suas próprias fichas; mestres acessam todas as fichas da campanha.
@@ -72,11 +75,23 @@ A identidade é fornecida pelo proxy autenticado do Sites, por meio dos cabeçal
 
 O código da campanha concede participação na mesa, mas não muda a audiência da hospedagem. A primeira publicação é privada para revisão do proprietário. Antes de convidar o grupo para uso real, compartilhe o Site com a audiência desejada; cada participante deve entrar com sua própria conta.
 
+### Login e salvamento
+
+O acesso usa a **conta do ChatGPT**, gerenciada pela hospedagem. Não há formulário próprio de e-mail/senha, nem senhas guardadas pelo Nexo. No primeiro acesso autenticado à API, um perfil é criado no D1; seu nome na mesa pode ser editado sem alterar a identidade da conta. Trocar de conta exige recarregar a aba: a API rejeita uma operação cujo cabeçalho de conta esperada não corresponda à identidade autenticada. Esse cabeçalho não concede acesso e nunca substitui a autenticação da hospedagem.
+
+Campanhas, participantes, fichas, PV/PE/SAN, técnicas e histórico são gravados no **banco D1 no servidor**. Ajustes de recursos, rolagens e criações são persistidos ao executar a ação. No editor, use **Salvar ficha** para confirmar a edição. A confirmação só aparece após uma resposta válida da API. O Nexo não repete automaticamente uma escrita interrompida: sincronize antes de repetir, porque a ação pode ter sido concluída antes da perda da resposta.
+
+Durante a edição, um rascunho temporário é guardado em `sessionStorage`, separado por conta de quem edita e por ficha. Ele permite recuperar texto após recarregar ou fechar e reabrir o editor na mesma aba. Ao salvar, o rascunho é removido. Rascunhos não substituem o banco nem sincronizam entre dispositivos; fechar a aba pode removê-los. Se o navegador bloquear o armazenamento, a interface avisa. Ao detectar edições simultâneas, o editor preserva alterações independentes e pede uma escolha explícita para os campos em conflito.
+
+Sem conexão, as fichas já carregadas continuam visíveis, e o editor mantém o rascunho quando o armazenamento da aba está disponível. Escritas exigem reconexão. A demonstração continua isolada em `localStorage` e não é importada automaticamente para uma conta real.
+
 Alterações completas de ficha usam versão otimista. Uma edição desatualizada recebe `409`, sem sobrescrever dados mais recentes. Ajustes de recursos são limitados no servidor. Rolagens reais usam aleatoriedade criptográfica do servidor, e rolagens de monstros sempre ficam privadas.
 
 ## Validação
 
-`pnpm test` executa 12 testes de domínio e integração. A integração chama a API real contra um adaptador D1 em SQLite e verifica autenticação ausente, origem inválida, convites, isolamento entre usuários, permissões de mestre, persistência de recursos, conflitos de versão, custo de habilidade, privacidade de monstros e revogação de acesso. Os módulos simulados vivem apenas em `tests/`.
+`pnpm test` executa testes de domínio, sincronização e integração. A integração chama a API real contra um adaptador D1 em SQLite e verifica autenticação ausente, origem inválida, convites, isolamento entre usuários, permissões de mestre, persistência de recursos, conflitos de versão, custo de habilidade, privacidade de monstros e revogação de acesso. Um teste fecha e reabre um arquivo de banco para confirmar a recuperação do perfil, da ficha, dos recursos e das rolagens. Também são cobertos troca de conta em uma aba antiga, retorno seguro do login, rascunhos com mudanças simultâneas e respostas de rede interrompidas. Os módulos simulados vivem apenas em `tests/`.
+
+O escopo inicial e as decisões para as próximas alterações estão registrados em [docs/PROJECT_SCOPE.md](docs/PROJECT_SCOPE.md).
 
 Os testes não substituem uma sessão de login no Site publicado. A interface de demonstração também é verificada manualmente no navegador, incluindo edição, rolagem, ajuste de recursos e recuperação após recarregar.
 

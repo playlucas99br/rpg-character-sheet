@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   ArrowUpRight,
   Brain,
-  Check,
   Download,
   Dices,
   EyeOff,
@@ -41,6 +40,8 @@ import {
 } from "./ui";
 import SheetEditor from "./sheet-editor";
 import { RollHistory } from "./dice-panel";
+import SyncIndicator from "./sync-status";
+import type { SyncStatus } from "../lib/game/client-sync";
 
 function ResourceCard({
   sheet,
@@ -230,6 +231,10 @@ export default function SheetView({
   campaign,
   rolls,
   busy,
+  draftScope,
+  syncStatus,
+  lastSavedAt,
+  demo,
   onBack,
   onSave,
   onResource,
@@ -241,6 +246,10 @@ export default function SheetView({
   campaign: Campaign;
   rolls: Roll[];
   busy: boolean;
+  draftScope: string;
+  syncStatus: SyncStatus;
+  lastSavedAt?: string;
+  demo: boolean;
   onBack: () => void;
   onSave: (s: Sheet) => Promise<boolean>;
   onResource: (key: ResourceKey, delta: number) => Promise<boolean>;
@@ -292,10 +301,7 @@ export default function SheetView({
                 Visível só para o mestre
               </span>
             )}
-            <span className="save-status">
-              <Check size={13} />
-              {busy ? "Salvando…" : "Alterações salvas"}
-            </span>
+            <SyncIndicator status={syncStatus} lastSavedAt={lastSavedAt} demo={demo} />
           </div>
         </div>
         <div className="character-header">
@@ -680,6 +686,8 @@ export default function SheetView({
       </div>
       {editing && (
         <SheetEditor
+          key={`${draftScope}:${sheet.id}`}
+          draftScope={draftScope}
           sheet={sheet}
           initialTab={editing}
           busy={busy}

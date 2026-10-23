@@ -1,6 +1,52 @@
 @import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;450;500;550;600;650;700&family=Manrope:wght@400;500;600;650;700;750;800&display=swap");
 @import "tailwindcss";
 
+.sign-in-page { min-height: 100dvh; position: relative; isolation: isolate; overflow: hidden; padding: 38px max(28px, calc((100vw - 1240px) / 2)); }
+.sign-in-art { position: absolute; z-index: -1; inset: 0; background: linear-gradient(90deg, #121717e6 0%, #121717df 45%, #121717c9 100%), url('/art/shrine.svg') center / cover; opacity: .65; }
+.sign-in-brand { display: flex; gap: 14px; align-items: center; font: 700 28px "Manrope", sans-serif; letter-spacing: .16em; color: var(--accent); }
+.sign-in-brand .die { width: 45px; height: 49px; }
+.sign-in-brand small { display: block; font-size: 8px; letter-spacing: .2em; color: var(--muted); margin-top: 4px; }
+.sign-in-layout { min-height: calc(100dvh - 170px); display: grid; grid-template-columns: 1.15fr 1fr; align-items: center; gap: 90px; padding: 52px 0 65px; }
+.sign-in-story h1 { margin-top: 22px; font-size: clamp(36px, 4.2vw, 56px); line-height: 1.17; letter-spacing: -.05em; }
+.sign-in-story h1 em { font-style: normal; color: var(--accent); }
+.sign-in-story > p { color: var(--muted); font-size: 17px; line-height: 1.8; max-width: 420px; margin-top: 22px; }
+.sign-in-systems { display: flex; align-items: center; flex-wrap: wrap; gap: 19px; margin-top: 29px; }
+.sign-in-systems > span:last-child { color: var(--muted); font-size: 12px; }
+.sign-in-features { margin-top: 40px; display: grid; gap: 23px; }
+.sign-in-features > div { display: flex; align-items: flex-start; gap: 15px; color: var(--accent); }
+.sign-in-features svg { flex-shrink: 0; margin-top: 3px; }
+.sign-in-features span { color: var(--muted); font-size: 13px; }
+.sign-in-features strong { display: block; color: var(--text); font-size: 14px; margin-bottom: 4px; font-weight: 550; }
+.sign-in-card { max-width: 440px; justify-self: end; padding: 36px; border: 1px solid var(--border); border-radius: 20px; background: #1b2020ed; box-shadow: 0 24px 85px #0003; width: 100%; }
+.sign-in-symbol { display: flex; margin-bottom: 25px; }
+.sign-in-symbol .die { width: 54px; height: 60px; color: var(--accent); }
+.sign-in-card h2 { margin: 10px 0 12px; font-size: 26px; }
+.sign-in-card > p { color: var(--muted); line-height: 1.8; margin-bottom: 25px; }
+.sign-in-card > .button { display: flex; justify-content: center; width: 100%; min-height: 46px; }
+.sign-in-assurance { display: flex; gap: 10px; margin-top: 19px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.sign-in-assurance svg { flex-shrink: 0; margin-top: 3px; color: var(--accent); }
+.sign-in-divider { text-align: center; border-top: 1px solid var(--border); margin: 31px 0 24px; height: 1px; }
+.sign-in-divider span { font-size: 11px; color: var(--muted); padding: 0 10px; background: #1b2020; position: relative; top: -11px; }
+.sign-in-card > small { display: block; color: var(--muted); font-size: 11px; text-align: center; margin-top: 13px; }
+.sign-in-footer { font-size: 11px; color: var(--accent); letter-spacing: .1em; padding-top: 18px; border-top: 1px solid var(--border); }
+.sign-in-footer span { color: var(--muted); letter-spacing: 0; margin-left: 14px; }
+.sync-indicator { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 11px; white-space: nowrap; }
+.sync-indicator.ready { color: var(--accent); }
+.sync-indicator.error, .sync-indicator.expired, .sync-indicator.offline { color: var(--hp); }
+.sync-indicator.saving svg, .sync-indicator.loading svg { animation: sync-spin 1.4s linear infinite; }
+.sync-notice { display: flex; gap: 13px; align-items: center; background: #c9858210; color: var(--hp); border: 1px solid #c9858240; border-radius: 10px; padding: 14px 17px; margin-bottom: 24px; }
+.sync-notice > svg { flex-shrink: 0; }
+.sync-notice p { flex: 1; font-size: 13px; }
+.sync-notice .text-button { flex-shrink: 0; color: inherit; }
+.editor-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+.draft-notice { padding: 14px; border: 1px solid #c5dda940; background: #c5dda909; border-radius: 9px; margin-bottom: 20px; font-size: 12px; color: var(--accent); }
+.draft-notice p { margin-top: 7px; color: var(--muted); }
+.draft-notice > div { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 13px; }
+.editor-save-hint { margin-right: auto; font-size: 11px; color: var(--muted); align-self: center; }
+@keyframes sync-spin { to { transform: rotate(360deg); } }
+@media (max-width: 1024px) { .sign-in-layout { gap: 40px; } .topbar-actions > .sync-indicator span { display: none; } }
+@media (max-width: 720px) { .sign-in-page { padding: 25px 22px; } .sign-in-layout { grid-template-columns: 1fr; padding: 40px 0; gap: 30px; } .sign-in-story h1 { font-size: 38px; } .sign-in-features { display: none; } .sign-in-card { justify-self: stretch; max-width: none; padding: 26px; } .sign-in-story > p { font-size: 15px; } .sync-notice { align-items: flex-start; flex-wrap: wrap; } .sync-notice .text-button { margin-left: 30px; } .editor-save-hint { flex-basis: 100%; } }
+
 :root {
   --bg: #181a1b;
   --sidebar: #121515;

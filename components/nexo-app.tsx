@@ -68,6 +68,9 @@ import {
 import { DicePanel, RollHistory } from "./dice-panel";
 import SheetView from "./sheet-view";
 import OrdemLibrary from "./ordem-library";
+import SignIn from "./sign-in";
+import SyncIndicator, { SyncNotice } from "./sync-status";
+import { GameApiError, requestGame, type SyncStatus } from "../lib/game/client-sync";
 
 type Page =
   | "dashboard"
@@ -236,14 +239,17 @@ function readRoute(): Route {
 
 export default function NexoApp({
   initialUser,
-  signInHref,
+  initialDemo = false,
+  signInHref: baseSignInHref,
   signOutHref,
 }: {
   initialUser: User | null;
+  initialDemo?: boolean;
   signInHref: string;
   signOutHref: string;
 }) {
   const [route, setRoute] = useState<Route>({ page: "dashboard" }),
+    [welcome, setWelcome] = useState(!initialUser && !initialDemo),
     [modal, setModal] = useState<ModalState>(null),
     [mobile, setMobile] = useState(false),
     [demo, setDemo] = useState(!initialUser),
@@ -254,7 +260,10 @@ export default function NexoApp({
     [realUser, setRealUser] = useState(initialUser),
     [busy, setBusy] = useState(false),
     [loading, setLoading] = useState(!!initialUser),
-    [loadError, setLoadError] = useState("");
+    [loadError, setLoadError] = useState(""),
+    [hasLoadedReal, setHasLoadedReal] = useState(false),
+    [syncStatus, setSyncStatus] = useState<SyncStatus>("loading"),
+    [lastSavedAt, setLastSavedAt] = useState<string>();
   const [query, setQuery] = useState(""),
     [filter, setFilter] = useState("all"),
     [historyCampaign, setHistoryCampaign] = useState("all"),
@@ -265,6 +274,10 @@ export default function NexoApp({
     [profileName, setProfileName] = useState(initialUser?.name || "");
   const busyRef = useRef(false),
     sequence = useRef(0);
+  const returnParams = new URLSearchParams();
+  if (!demo && route.page !== "dashboard") returnParams.set("view", route.page);
+  if (!demo && route.id) returnParams.set("id", route.id);
+  const signInHref = `${baseSignInHref.split("?")[0]}?return_to=${encodeURIComponent(`/${returnParams.size ? `?${returnParams}` : ""}`)}`;
   const user = demo ? DEMO_USER : realUser || DEMO_USER;
   const raw = demo ? sample : real;
   const campaigns =
@@ -301,11 +314,12 @@ export default function NexoApp({
     setMobile(false);
     setFilter("all");
     const params = new URLSearchParams();
+    if (demo && !initialUser) params.set("demo", "1");
     if (page !== "dashboard") params.set("view", page);
     if (id) params.set("id", id);
     window.history.pushState({}, "", `/${params.size ? `?${params}` : ""}`);
     window.scrollTo({ top: 0, behavior: "instant" });
-  }, []);
+  }, [demo, initialUser]);
   useEffect(() => {
     setRoute(readRoute());
     const pop = () => setRoute(readRoute());
@@ -324,7 +338,7 @@ export default function NexoApp({
     } catch {}
     setSampleLoaded(true);
     return () => window.removeEventListener("popstate", pop);
-  }, []);
+  }, [initialUser]);
   useEffect(() => {
     if (sampleLoaded)
       try {
@@ -340,31 +354,29 @@ export default function NexoApp({
     if (!initialUser || busyRef.current) return;
     const token = ++sequence.current;
     try {
-      const response = await fetch("/api/game", {
-        cache: "no-store",
-        credentials: "same-origin",
-      });
-      const state = (await response.json()) as Workspace & {
-        user: User;
-        error?: string;
-        result?: Result;
-      };
-      if (!response.ok)
-        throw new Error(
-          state.error || "Não foi possível carregar suas campanhas.",
-        );
+      const state = await requestGame<Result>(undefined, initialUser.id);
+      if (state.user.id !== initialUser.id) {
+        window.location.reload();
+        return;
+      }
       if (token === sequence.current) {
         setReal(state);
         setRealUser(state.user);
         setLoadError("");
+        setHasLoadedReal(true);
+        setSyncStatus("ready");
       }
     } catch (error) {
-      if (token === sequence.current)
+      if (token === sequence.current) {
         setLoadError(
           error instanceof Error
             ? error.message
             : "Falha ao carregar as campanhas.",
         );
+        const expired = error instanceof GameApiError && error.status === 401;
+        setSyncStatus(expired ? "expired" : navigator.onLine ? "error" : "offline");
+        if (expired) { setReal(EMPTY); setHasLoadedReal(false); }
+      }
     } finally {
       if (token === sequence.current) setLoading(false);
     }
@@ -375,44 +387,60 @@ export default function NexoApp({
     const timer = setInterval(() => {
       if (document.visibilityState === "visible") void refresh();
     }, 20000);
-    return () => clearInterval(timer);
+    const online = () => void refresh();
+    const offline = () => setSyncStatus("offline");
+    const visible = () => { if (document.visibilityState === "visible") void refresh(); };
+    window.addEventListener("online", online);
+    window.addEventListener("offline", offline);
+    document.addEventListener("visibilitychange", visible);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("online", online);
+      window.removeEventListener("offline", offline);
+      document.removeEventListener("visibilitychange", visible);
+    };
   }, [demo, refresh]);
   async function mutation(
     input: Record<string, unknown>,
   ): Promise<Result | null> {
     if (busyRef.current) return null;
+    if (!demo && (!hasLoadedReal || syncStatus === "expired" || !navigator.onLine)) {
+      notify(syncStatus === "expired" ? "Entre novamente antes de salvar." : !navigator.onLine ? "Sem conexão. Seu rascunho continua nesta aba; conecte-se para salvar na conta." : "Aguarde a conexão com sua conta antes de alterar os dados.", true);
+      return null;
+    }
     busyRef.current = true;
     setBusy(true);
     ++sequence.current;
+    if (!demo) setSyncStatus("saving");
     try {
       if (demo) {
         const { state, result } = demoMutation(sample, input);
         setSample(state);
         return result;
       }
-      const response = await fetch("/api/game", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify(input),
-      });
-      const state = (await response.json()) as Workspace & {
-        user: User;
-        error?: string;
-        result?: Result;
-      };
-      if (!response.ok) {
-        if (response.status === 409) {
+      const state = await requestGame<Result>(input, initialUser?.id);
+      if (state.user.id !== initialUser?.id) {
+        window.location.reload();
+        return null;
+      }
+      setReal(state);
+      setRealUser(state.user);
+      setLoadError("");
+      setSyncStatus("ready");
+      setLastSavedAt(new Date().toISOString());
+      return state.result || {};
+    } catch (error) {
+      if (!demo) {
+        if (error instanceof GameApiError && error.status === 409) {
           busyRef.current = false;
           await refresh();
           busyRef.current = true;
         }
-        throw new Error(state.error || "Não foi possível salvar.");
+        const expired = error instanceof GameApiError && error.status === 401;
+        setSyncStatus(expired ? "expired" : navigator.onLine ? "error" : "offline");
+        setLoadError(error instanceof Error ? error.message : "Não foi possível confirmar o salvamento. Sincronize antes de repetir a ação.");
+        if (expired) { setReal(EMPTY); setHasLoadedReal(false); }
       }
-      setReal(state);
-      setRealUser(state.user);
-      return state.result || {};
-    } catch (error) {
       notify(
         error instanceof Error
           ? error.message
@@ -502,6 +530,13 @@ export default function NexoApp({
       createCampaign();
     },
   };
+  if (welcome && !initialUser) {
+    return <SignIn signInHref={signInHref} onDemo={() => {
+      setWelcome(false);
+      setDemo(true);
+      window.history.replaceState({}, "", "/?demo=1");
+    }} />;
+  }
   return (
     <div className="app-shell">
       {mobile && (
@@ -622,6 +657,7 @@ export default function NexoApp({
             <strong>{title || "Nexo"}</strong>
           </div>
           <div className="topbar-actions">
+            <SyncIndicator status={syncStatus} lastSavedAt={lastSavedAt} demo={demo} />
             <div className="global-search">
               <Search size={16} />
               <input
@@ -723,22 +759,23 @@ export default function NexoApp({
           </div>
         )}
         <main className="main-content" id="main-content">
+          {!demo && <SyncNotice status={syncStatus} message={loadError} signInHref={signInHref} onRetry={() => void refresh()} />}
           {loading && !demo ? (
             <div className="loading-state">
               <Die value="N" />
               <h2>Abrindo seu universo…</h2>
               <p>Reunindo suas campanhas e personagens.</p>
             </div>
-          ) : loadError && !demo ? (
+          ) : loadError && !demo && !hasLoadedReal ? (
             <Empty title="Sua mesa está a um passo" description={loadError}>
-              <Button
+              {syncStatus === "expired" ? <a className="button primary" href={signInHref} target="_top"><LogIn size={16} />Entrar novamente</a> : <Button
                 onClick={() => {
                   setLoading(true);
                   void refresh();
                 }}
               >
                 Tentar novamente
-              </Button>
+              </Button>}
               <Button variant="secondary" onClick={switchMode}>
                 Explorar demonstração
               </Button>
@@ -1156,6 +1193,10 @@ export default function NexoApp({
                 (currentSheet && sheetCampaign ? (
                   <SheetView
                     key={currentSheet.id}
+                    draftScope={demo ? "demo" : user.id}
+                    syncStatus={syncStatus}
+                    lastSavedAt={lastSavedAt}
+                    demo={demo}
                     sheet={currentSheet}
                     campaign={sheetCampaign}
                     rolls={rolls}
@@ -1547,7 +1588,7 @@ export default function NexoApp({
       {modal?.type === "profile" && initialUser && (
         <Modal
           title="Seu nome na mesa"
-          subtitle="Como você quer aparecer para os outros jogadores?"
+          subtitle="Sua conta e o nome que aparece para os outros jogadores."
           onClose={() => setModal(null)}
         >
           <form
@@ -1568,6 +1609,10 @@ export default function NexoApp({
             }}
           >
             <div className="modal-body">
+              <div className="hint-box">
+                <Shield size={19} />
+                <p>Conectado com ChatGPT. Campanhas, fichas e rolagens são salvas na sua conta. Seu nome de exibição não altera suas permissões na mesa.</p>
+              </div>
               <Field label="Nome de exibição">
                 <input
                   value={profileName}
