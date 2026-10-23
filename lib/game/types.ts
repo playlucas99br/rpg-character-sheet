@@ -29,6 +29,34 @@ export type Ability = {
   formula: string;
   description: string;
 };
+export type KnownRitual = {
+  id: string;
+  name: string;
+  element: "Conhecimento" | "Energia" | "Morte" | "Sangue" | "Medo";
+  circle: number;
+  summary: string;
+  sourcePage: number;
+  details?: RitualDetails;
+};
+export type RitualDetails = {
+  execution?: string;
+  range?: string;
+  target?: string;
+  area?: string;
+  effect?: string;
+  duration?: string;
+  resistance?: string;
+  description: string[];
+};
+export type KnownWeapon = {
+  id: string;
+  name: string;
+  category: string;
+  damage: string;
+  range: string;
+  critical: number;
+  sourcePage: number;
+};
 export type Sheet = {
   id: string;
   campaignId: string;
@@ -46,6 +74,7 @@ export type Sheet = {
   resources: Record<ResourceKey, Resource>;
   skills: Skill[];
   attacks: Attack[];
+  rituals: KnownRitual[];
   abilities: Ability[];
   inventory: string;
   notes: string;
