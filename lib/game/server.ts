@@ -1,4 +1,3 @@
-import { env } from "cloudflare:workers";
 import { z } from "zod";
 import type {
   Campaign,
@@ -14,22 +13,10 @@ import { campaignSchema, sheetSchema } from "./validation";
 import { newSheet, systemById } from "./systems";
 import { resolveRoll } from "./dice";
 import { ORDEM_RITUALS, ORDEM_WEAPONS } from "./ordem-library";
+import { GameError } from "./errors";
+import { database, preparePersistence } from "./persistence";
+export { GameError, database };
 
-export class GameError extends Error {
-  status: number;
-  constructor(message: string, status = 400) {
-    super(message);
-    this.status = status;
-  }
-}
-export function database() {
-  if (!env.DB)
-    throw new GameError(
-      "O armazenamento da campanha está temporariamente indisponível.",
-      503,
-    );
-  return env.DB;
-}
 type CampaignRow = {
   id: string;
   name: string;
@@ -65,6 +52,7 @@ function hydrateSheet(row: SheetRow): Sheet {
   };
 }
 export async function ensureProfile(user: User) {
+  await preparePersistence();
   await database()
     .prepare(
       "INSERT INTO profiles (id, name, created_at) VALUES (?, ?, ?) ON CONFLICT(id) DO NOTHING",

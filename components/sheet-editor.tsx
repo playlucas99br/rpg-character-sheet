@@ -1,28 +1,83 @@
 "use client";
 import { randomId } from "../lib/game/id";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Plus, Trash2 } from "lucide-react";
 import type { Sheet } from "../lib/game/types";
 import { isOrdem, systemById } from "../lib/game/systems";
 import { sheetSchema } from "../lib/game/validation";
 import { Button, Field, Modal } from "./ui";
+import { draftKey, hasDraftChanges, parseDraft, reconcileDraft, type SheetDraft } from "../lib/game/drafts";
+
+const fieldNames: Record<string, string> = { name: "nome", className: "classe", origin: "origem", level: "nível", exposure: "NEX", defense: "defesa", attributes: "atributos", resources: "vida, energia ou sanidade", skills: "perícias", attacks: "ataques", rituals: "rituais", abilities: "habilidades", inventory: "equipamento", notes: "notas", description: "descrição", tone: "cor" };
 
 export default function SheetEditor({
   sheet,
+  draftScope,
   initialTab = "general",
   busy,
   onSave,
   onClose,
 }: {
   sheet: Sheet;
+  draftScope: string;
   initialTab?: string;
   busy: boolean;
   onSave: (value: Sheet) => Promise<boolean>;
   onClose: () => void;
 }) {
   const [draft, setDraft] = useState<Sheet>(() => structuredClone(sheet)),
+    [base, setBase] = useState<Sheet>(() => structuredClone(sheet)),
+    [loaded, setLoaded] = useState(false),
+    [restored, setRestored] = useState(false),
+    [recovery, setRecovery] = useState<SheetDraft | null>(null),
+    [storageError, setStorageError] = useState(false),
     [tab, setTab] = useState(initialTab),
     [error, setError] = useState("");
+  const storageKey = draftKey(draftScope, sheet.id);
+  const destination = draftScope === "demo" ? "na demonstração" : "na conta";
+  const dirty = hasDraftChanges(base, draft);
+  const conflicts = recovery ? reconcileDraft(recovery, sheet).conflicts : [];
+  useEffect(() => {
+    try {
+      const saved = parseDraft(sessionStorage.getItem(storageKey), sheet);
+      if (saved) {
+        const merged = reconcileDraft(saved, sheet);
+        if (merged.conflicts.length) setRecovery(saved);
+        else { setDraft(merged.value); setRestored(true); }
+      }
+    } catch { setStorageError(true); }
+    setLoaded(true);
+    // A mounted editor keeps its original base even if polling refreshes the sheet.
+    // The version is reconciled explicitly at save time.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storageKey]);
+  useEffect(() => {
+    if (!loaded || recovery) return;
+    try {
+      if (dirty) sessionStorage.setItem(storageKey, JSON.stringify({ base, value: draft, savedAt: new Date().toISOString() } satisfies SheetDraft));
+      else sessionStorage.removeItem(storageKey);
+      setStorageError(false);
+    } catch { setStorageError(true); }
+  }, [storageKey, base, draft, loaded, dirty, recovery]);
+  useEffect(() => {
+    if (!dirty && !recovery) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty, recovery]);
+  function clearDraft() {
+    try { sessionStorage.removeItem(storageKey); } catch {}
+  }
+  function resolveConflict(keepMine: boolean) {
+    if (!recovery) return;
+    const merged = reconcileDraft(recovery, sheet);
+    if (keepMine) for (const key of merged.conflicts) Object.assign(merged.value, { [key]: structuredClone(recovery.value[key as keyof Sheet]) });
+    setBase(structuredClone(sheet));
+    setDraft(merged.value);
+    setRecovery(null);
+    setRestored(true);
+    setError("");
+  }
   const system = systemById(sheet.system),
     ordem = isOrdem(sheet.system);
   const set = <K extends keyof Sheet>(key: K, value: Sheet[K]) =>
@@ -40,20 +95,35 @@ export default function SheetEditor({
       title={`Editar ${sheet.type === "monster" ? "criatura" : "personagem"}`}
       subtitle="Deixe a ficha com a cara da sua história."
       wide
-      onClose={onClose}
+      onClose={() => { if (!busy) onClose(); }}
     >
       <form
         onSubmit={async (e) => {
           e.preventDefault();
-          const parsed = sheetSchema.safeParse(draft);
+          let next = draft;
+          if (sheet.version !== base.version) {
+            const pending = { base, value: draft, savedAt: new Date().toISOString() };
+            const merged = reconcileDraft(pending, sheet);
+            if (merged.conflicts.length) {
+              setRecovery(pending);
+              setError("A ficha mudou em outra janela. Resolva os campos em conflito antes de salvar.");
+              return;
+            }
+            next = merged.value;
+            setBase(structuredClone(sheet));
+            setDraft(next);
+          }
+          const parsed = sheetSchema.safeParse(next);
           if (!parsed.success) {
             setError(parsed.error.issues[0].message);
             return;
           }
           setError("");
-          if (await onSave(draft)) onClose();
+          if (await onSave(next)) { clearDraft(); onClose(); }
+          else setError("O salvamento não foi confirmado. Sua edição continua aqui. Sincronize a conta antes de tentar novamente.");
         }}
       >
+        <fieldset disabled={busy} className="editor-fields">
         <div
           className="editor-tabs"
           role="tablist"
@@ -75,6 +145,13 @@ export default function SheetEditor({
           ))}
         </div>
         <div className="modal-body editor-body">
+          {recovery && <div className="draft-notice" role="alert">
+            <strong>Há um rascunho e uma versão mais recente na conta.</strong>
+            <p>Campos alterados nas duas versões: {conflicts.map((key) => fieldNames[key] || key).join(", ") || "nenhum"}. Escolha os valores desses campos. As demais edições serão preservadas.</p>
+            <div><Button type="button" variant="secondary" onClick={() => resolveConflict(false)}>Usar valores da conta</Button><Button type="button" variant="secondary" onClick={() => resolveConflict(true)}>Manter minha edição</Button></div>
+          </div>}
+          {restored && !recovery && <p className="draft-notice" role="status">Rascunho recuperado nesta aba. Clique em Salvar ficha para gravar {destination}.</p>}
+          {storageError && <p className="form-error" role="alert">Este navegador não permitiu guardar o rascunho. Salve a ficha antes de fechar esta janela.</p>}
           {tab === "general" && (
             <>
               <Field label="Nome">
@@ -636,14 +713,17 @@ export default function SheetEditor({
           )}
         </div>
         <div className="modal-footer">
+          <span className="editor-save-hint">{dirty || recovery ? `Edição ainda não salva ${destination}` : "Nenhuma alteração pendente"}</span>
+          {(dirty || recovery) && <Button type="button" variant="ghost" className="danger-text" onClick={() => { clearDraft(); onClose(); }}>Descartar rascunho</Button>}
           <Button type="button" variant="ghost" onClick={onClose}>
-            Cancelar
+            {dirty || recovery ? "Fechar e guardar rascunho" : "Fechar"}
           </Button>
-          <Button type="submit" disabled={busy}>
+          <Button type="submit" disabled={busy || !!recovery || !loaded}>
             {busy ? "Salvando…" : "Salvar ficha"}
             <Check size={16} />
           </Button>
         </div>
+        </fieldset>
       </form>
     </Modal>
   );

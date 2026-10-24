@@ -2,12 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
 import { DatabaseSync } from "node:sqlite";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 // Only this test process replaces platform bindings. Production has no mock path.
 registerHooks({
   resolve(specifier, context, nextResolve) {
-    if (specifier === "cloudflare:workers")
+    if ((specifier === "cloudflare:workers" || specifier === "@/lib/runtime-env"))
       return {
         url: new URL("./cloudflare.mjs", import.meta.url).href,
         shortCircuit: true,
@@ -90,7 +92,7 @@ async function read(id) {
   const response = await GET();
   return { status: response.status, data: await response.json() };
 }
-async function write(id, body, requestOrigin = origin) {
+async function write(id, body, requestOrigin = origin, expectedUserId) {
   asUser(id);
   const response = await POST(
     new Request(`${origin}/api/game`, {
@@ -98,6 +100,7 @@ async function write(id, body, requestOrigin = origin) {
       headers: {
         "Content-Type": "application/json",
         ...(requestOrigin ? { Origin: requestOrigin } : {}),
+        ...(expectedUserId ? { "X-Nexo-Account": expectedUserId } : {}),
       },
       body: JSON.stringify(body),
     }),
@@ -454,5 +457,54 @@ test("API → SQLite → response: campaign, invitations, ownership, resources, 
   } finally {
     sql.close();
     delete env.DB;
+  }
+});
+
+test("account login and sheets survive database reopen; a stale signed-in tab cannot write as another account", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "nexo-account-"));
+  const databasePath = join(directory, "game.sqlite");
+  let sql = new DatabaseSync(databasePath);
+  env.DB = new LocalD1(sql);
+  for (const file of readdirSync(new URL("../drizzle/", import.meta.url)).filter((file) => file.endsWith(".sql")).sort())
+    sql.exec(readFileSync(new URL(`../drizzle/${file}`, import.meta.url), "utf8"));
+  try {
+    const { chatGPTSignInPath, chatGPTSignOutPath } = await import("../app/chatgpt-auth.ts");
+    for (const unsafe of ["https://outside.example", "//outside.example", "/signin-with-chatgpt", "/callback", "/\\outside.example"])
+      assert.equal(chatGPTSignInPath(unsafe), "/signin-with-chatgpt?return_to=%2F");
+    assert.equal(chatGPTSignOutPath(), "/signout-with-chatgpt?return_to=%2F");
+    assert.equal(chatGPTSignInPath("/?view=sheet&id=123"), "/signin-with-chatgpt?return_to=%2F%3Fview%3Dsheet%26id%3D123");
+    await read("persisted");
+    await write("persisted", { action: "profile", name: "Nome na mesa" });
+    const created = await write("persisted", { action: "create_campaign", campaign: { name: "Heian persistente", description: "", system: "jujutsu", banner: "shrine" } });
+    const campaignId = created.data.result.id;
+    const createdSheet = await write("persisted", { action: "create_sheet", campaignId, type: "character", name: "Kenshō" });
+    let sheet = createdSheet.data.sheets[0];
+    const updated = await write("persisted", { action: "update_sheet", sheetId: sheet.id, version: sheet.version, sheet: { ...sheet, notes: "Salvo no banco, fora do navegador.", inventory: "Tenbatsu" } });
+    assert.equal(updated.status, 200);
+    sheet = updated.data.sheets[0];
+    const adjusted = await write("persisted", { action: "resource", sheetId: sheet.id, key: "hp", delta: -3 });
+    const expected = adjusted.data.sheets[0];
+    await write("persisted", { action: "roll", campaignId, sheetId: sheet.id, request: { kind: "skill", id: sheet.skills[0].id }, visibility: "table" });
+    sql.close();
+    sql = new DatabaseSync(databasePath);
+    env.DB = new LocalD1(sql);
+    const reloaded = await read("persisted");
+    assert.equal(reloaded.data.user.name, "Nome na mesa");
+    assert.equal(reloaded.data.sheets[0].notes, "Salvo no banco, fora do navegador.");
+    assert.equal(reloaded.data.sheets[0].inventory, "Tenbatsu");
+    assert.deepEqual(reloaded.data.sheets[0].resources, expected.resources);
+    assert.equal(reloaded.data.sheets[0].version, expected.version);
+    assert.equal(reloaded.data.rolls.length, 1);
+    assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM profiles WHERE id='persisted'").get().count, 1);
+    assert.equal((await read(null)).status, 401);
+    const mismatch = await write("other-account", { action: "create_campaign", campaign: { name: "Não criar", system: "ordem", banner: "forest", description: "" } }, origin, "persisted");
+    assert.equal(mismatch.status, 401);
+    assert.equal((await read("other-account")).data.campaigns.length, 0);
+    assert.equal((await read("other-account")).data.sheets.length, 0);
+    assert.equal((await read("persisted")).data.campaigns.length, 1);
+  } finally {
+    sql.close();
+    delete env.DB;
+    rmSync(directory, { recursive: true });
   }
 });
