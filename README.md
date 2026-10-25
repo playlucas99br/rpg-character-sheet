@@ -19,7 +19,8 @@ Um espaço para organizar campanhas, criar personagens e jogar com fichas intera
 - Histórico compartilhado por campanha e rolagens privadas do mestre.
 - Exportação da ficha em JSON e impressão em A4.
 - Modo de demonstração isolado, persistido apenas no navegador, com alternância entre visão de mestre e jogador.
-- Atualização das campanhas a cada 20 segundos enquanto a página estiver visível.
+- Imagens privadas por campanha: retratos, tokens e mapas, com upload assinado e seleção de retrato na ficha (Supabase/Vercel).
+- Avisos de atualização em tempo real por canal privado, com leitura autenticada e polling de recuperação a cada 20 segundos.
 
 ## Sistemas e limites desta versão
 
@@ -37,6 +38,15 @@ Os modelos não incluem os livros ou um compêndio oficial. Não há automação
 Em Ordem/Jujutsu, o teste usa o maior entre N d20, sendo N o atributo, e soma o bônus da perícia. Atributo zero usa o menor entre 2d20. Ataques usam uma perícia configurada para acerto e uma expressão própria para dano. O crítico sinaliza o resultado natural; multiplicadores de dano são aplicados manualmente conforme a mesa.
 
 Exemplos do rolador: `1d20+5`, `2d8+3`, `3d20kh1+5`, `2d20kl1`. Não utiliza `eval`; aceita até 30 dados, de 2 a 1000 lados, com bônus de -1000 a 1000. Expressões com vários grupos de dados ainda não estão implementadas.
+
+## Documentação técnica
+
+- [Banco de dados: tabelas, colunas, JSON das fichas, índices e transações](docs/DATABASE.md)
+- [Autenticação, permissões de jogador/mestre, RLS e arquivos privados](docs/AUTH_AND_PERMISSIONS.md)
+- [Desenvolvimento, migrações, publicação, testes, backup e manutenção](docs/OPERATIONS.md)
+- [Validação e etapas de publicação desta entrega](docs/VALIDATION.md)
+
+O caminho principal para continuar o projeto é **Next.js/Vercel + Supabase**. Comece pelo guia de operação acima. As instruções D1 abaixo mantêm o ambiente legado do Sites.
 
 ## Desenvolvimento
 
@@ -97,7 +107,7 @@ Campanhas, participantes, fichas, PV/PE/SAN, técnicas e histórico são gravado
 
 Projeto: **nexo-rpg**, região **São Paulo (`sa-east-1`)**. As tabelas estão no schema privado `nexo`. Os IDs existentes do ChatGPT foram preservados na transferência; contas da Vercel usam o provedor Supabase Auth.
 
-O navegador acessa apenas `/api/game`. O servidor do Sites chama a função `nexo-database`, que autentica um token exclusivo de servidor e usa as credenciais gerenciadas do Supabase dentro de seu próprio ambiente. Não há chave `service_role` no site, no navegador ou no Git. O arquivo `gateway-config.ts` contém somente o hash SHA-256 do token. As funções SQL são `SECURITY INVOKER` e só podem ser executadas por `service_role`; `anon` e `authenticated` não têm acesso ao schema, às tabelas nem às funções. Todas as tabelas têm RLS e políticas de negação explícita para esses papéis. As permissões de dono/mestre são aplicadas pela API autenticada antes das operações.
+Na Vercel, o navegador usa `/api/game`, `/api/media`, Supabase Auth, transferências assinadas do Storage e canais Realtime privados. As operações de jogo passam por `nexo-game`, autenticadas com o JWT do jogador. O servidor legado do Sites chama `nexo-database` com um token exclusivo de servidor. Não há chave `service_role` no site, no navegador ou no Git. O arquivo `gateway-config.ts` contém somente o hash SHA-256 do token legado. RPCs de jogo são `SECURITY INVOKER`, executáveis somente por `service_role`; os papéis do navegador não recebem privilégios de tabela e também encontram RLS de negação explícita. A única função de leitura disponível a `authenticated` retorna um booleano de participação para autorizar Realtime, sem expor fichas. Veja a matriz de permissões na documentação técnica.
 
 Configure no ambiente do Sites, como segredos de execução:
 
@@ -110,7 +120,7 @@ No primeiro acesso autenticado, o servidor verifica o marco de importação. Se 
 
 As migrações PostgreSQL ficam em `supabase/migrations/`, separadas das migrações D1 em `drizzle/`. O gateway aceita somente consultas literais registradas na migração. Ao adicionar uma consulta ao repositório, use `node scripts/supabase-query-registry.mjs` para gerar o fragmento e inclua-o em uma **nova** migração; não reescreva uma migração aplicada. Escritas e lotes usam uma transação com trava de aplicação, preservando a atomicidade entre custo de habilidade e registro da rolagem em requisições concorrentes.
 
-Para uma verificação real, `tests/supabase-live.mjs` recebe configuração pelo stdin protegido e chama a própria rota da API contra o Supabase. Não informe credenciais em argumentos de shell nem salve a configuração em arquivos. O teste cria registros identificados por `verify-...`; remova esses registros de verificação depois de inspecioná-los. Os testes padrão de CI continuam independentes da rede e de credenciais.
+Para a integração legada do Sites, `tests/supabase-live.mjs` recebe configuração pelo stdin protegido e chama a própria rota da API contra o Supabase. Não informe credenciais em argumentos de shell nem salve a configuração em arquivos. O teste cria registros identificados por `verify-...`; remova esses registros de verificação depois de inspecioná-los. Ele não testa Supabase Auth. Os testes padrão de CI continuam independentes da rede e de credenciais, e incluem aplicação das migrações reais em PostgreSQL/PGlite com testes de grants, RLS, mídia e Realtime.
 
 Durante a edição, um rascunho temporário é guardado em `sessionStorage`, separado por conta de quem edita e por ficha. Ele permite recuperar texto após recarregar ou fechar e reabrir o editor na mesma aba. Ao salvar, o rascunho é removido. Rascunhos não substituem o banco nem sincronizam entre dispositivos; fechar a aba pode removê-los. Se o navegador bloquear o armazenamento, a interface avisa. Ao detectar edições simultâneas, o editor preserva alterações independentes e pede uma escolha explícita para os campos em conflito.
 
@@ -129,9 +139,9 @@ Os testes não substituem uma sessão de login no Site publicado. A interface de
 ## Próximas evoluções
 
 - Incorporar as regras próprias da campanha de Jujutsu: aparar, vestígios, técnicas e progressão.
-- Importar fichas JSON, adicionar retratos e duplicar personagens/criaturas.
+- Importar fichas JSON e duplicar personagens/criaturas.
 - Condições, iniciativa e gerenciamento de combate.
-- Presença e sincronização em tempo real.
+- Presença dos participantes e ferramentas de combate em tempo real.
 - Automação dedicada para D&D, Call of Cthulhu e Tormenta20.
 - Modelos de sistemas registrados pelo mestre dentro da interface.
 
