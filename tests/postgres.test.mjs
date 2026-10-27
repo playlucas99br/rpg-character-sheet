@@ -36,7 +36,8 @@ before(async () => {
     grant select,insert on realtime.messages to service_role,authenticated;
     create function realtime.topic() returns text language sql stable as $$ select current_setting('realtime.topic',true) $$;
     create function realtime.send(payload jsonb,event text,topic text,private boolean default true) returns void language sql as
-      $$ insert into realtime.messages(payload,event,topic,private,extension) values(payload,event,topic,private,'broadcast') $$;
+      $$ insert into realtime.messages(payload,event,topic,private,extension)
+        values(jsonb_build_object('id',gen_random_uuid()::text)||payload,event,topic,private,'broadcast') $$;
     grant execute on function realtime.topic(),realtime.send(jsonb,text,text,boolean) to service_role,authenticated;
   `);
   const directory = new URL("../supabase/migrations/", import.meta.url);
@@ -49,6 +50,10 @@ before(async () => {
   await db.query("insert into nexo.sheets(id,campaign_id,owner_id,type,data) values('hero','campaign-a',$1,'character','{}'),('monster','campaign-a',$2,'monster','{}'),('other-hero','campaign-b',$3,'character','{}')", [player, gm, other]);
 });
 after(async () => { await db?.close(); });
+
+test("hosted consolidation smoke checks roles and rolls back every fixture", async () => {
+  await db.exec(await readFile(new URL("../supabase/tests/consolidation-smoke.sql", import.meta.url), "utf8"));
+});
 
 test("Supabase migrations boot a new database without a legacy import marker", async () => {
   assert.deepEqual(await asRole("service_role", () => scalar("select public.nexo_schema_status() as value")), { ready: true, schemaVersion: 2 });
@@ -158,7 +163,7 @@ test("Realtime authorizes only campaign members and never lets clients broadcast
     const messages = (await db.query("select payload,event,private from realtime.messages")).rows;
     assert.ok(messages.length > 0);
     for (const message of messages) {
-      assert.deepEqual(Object.keys(message.payload), ["campaignId"]);
+      assert.deepEqual(Object.keys(message.payload).sort(), ["campaignId", "id"]);
       assert.equal(message.payload.campaignId, "campaign-a");
       assert.equal(message.event, "invalidate"); assert.equal(message.private, true);
     }

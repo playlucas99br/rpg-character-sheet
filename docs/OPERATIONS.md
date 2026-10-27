@@ -143,6 +143,14 @@ Para reconciliar manualmente, liste os metadados de `nexo.assets` e os objetos d
 
 Após excluir uma ficha, seus assets permanecem com `sheet_id=NULL` e continuam sujeitos a dono/mestre/visibilidade; o mestre pode removê-los. Após exclusão administrativa de campanha, o cascade elimina seus metadados, mas os objetos devem ser removidos pelo serviço Storage. Não há ação de excluir campanha na interface atual nem rotina automática de limpeza.
 
+## Smoke da consolidação (T01)
+
+Após aplicar as migrações e antes de liberar o frontend, execute administrativamente `supabase/tests/consolidation-smoke.sql`. O script verifica as regras de mídia e Realtime com fixtures de jogo temporários. Uma subtransação desfaz os fixtures e mensagens ao terminar; ele não cria usuários em Auth nem objetos/bytes no Storage. Qualquer falha interrompe e desfaz a instrução inteira.
+
+O serviço Realtime precisa ter recebido uma conexão WebSocket antes desse smoke: o próprio serviço cria e mantém as partições de `realtime.messages`. Uma base sem clientes conectados pode descartar Broadcasts com `WarnSendingBroadcastMessage`. Não crie partições manualmente em schemas gerenciados. Veja a [orientação oficial](https://supabase.com/kb/troubleshooting/realtime-warn-sending-broadcast-message). A entrada em canal privado usa a sessão confirmada e as políticas descritas em [AUTH_AND_PERMISSIONS.md](AUTH_AND_PERMISSIONS.md).
+
+Esse smoke não verifica o transporte de bytes no Storage nem a entrega de eventos em dois navegadores. O aceite dessas etapas está em [VALIDATION.md](VALIDATION.md).
+
 ## Backup e recuperação
 
 Use o mecanismo de backup/export PostgreSQL adequado ao plano e mantenha cópia do bucket por mecanismo próprio de Storage. Um backup do PostgreSQL contém metadados de arquivos, **não seus bytes**. `imports` não é backup, e GitHub não contém os dados dos usuários.
