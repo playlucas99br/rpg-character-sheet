@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ensureProfile, workspaceFor, mutate, GameError } from "../../../lib/game/server.ts";
+import { handleMedia } from "./media.ts";
 
 // Bundled from the same game repository used by Sites. No alternate permission rules.
 const reply = (data: unknown, status = 200) => Response.json(data, { status, headers: { "Cache-Control": "private, no-store", Vary: "Authorization" } });
@@ -29,6 +30,7 @@ Deno.serve(async (request: Request) => {
     }
     await ensureProfile(user);
     if (!input) return reply(await workspaceFor(user));
+    if (typeof input.action === "string" && input.action.startsWith("media_")) return reply(await handleMedia(user, input));
     const state = await workspaceFor(user);
     const result = await mutate(state.user, input);
     return reply({ ...(await workspaceFor(state.user)), result });

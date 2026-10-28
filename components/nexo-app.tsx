@@ -70,6 +70,8 @@ import SheetView from "./sheet-view";
 import OrdemLibrary from "./ordem-library";
 import SignIn from "./sign-in";
 import SyncIndicator, { SyncNotice } from "./sync-status";
+import CampaignAssets from "./campaign-assets";
+import { useCampaignRealtime } from "../lib/game/use-campaign-realtime";
 import { GameApiError, requestGame, type SyncStatus } from "../lib/game/client-sync";
 
 type Page =
@@ -402,6 +404,7 @@ export default function NexoApp({
       document.removeEventListener("visibilitychange", visible);
     };
   }, [demo, refresh]);
+  useCampaignRealtime(!demo && authProvider === "supabase" && hasLoadedReal, initialUser?.id, JSON.stringify(real.campaigns.map((c) => c.id).sort()), refresh);
   async function mutation(
     input: Record<string, unknown>,
   ): Promise<Result | null> {
@@ -1062,6 +1065,7 @@ export default function NexoApp({
               )}
               {route.page === "campaign" &&
                 (currentCampaign ? (
+                  <>
                   <CampaignDetail
                     campaign={currentCampaign}
                     sheets={sheets.filter(
@@ -1083,6 +1087,8 @@ export default function NexoApp({
                       })
                     }
                   />
+                  {!demo && authProvider === "supabase" && <CampaignAssets key={currentCampaign.id} campaign={currentCampaign} sheets={sheets.filter((s) => s.campaignId === currentCampaign.id)} user={user} onRefresh={refresh} />}
+                  </>
                 ) : (
                   <Empty
                     title="Campanha não encontrada"

@@ -84,6 +84,7 @@ export type Sheet = {
   notes: string;
   description: string;
   tone: string;
+  portraitAssetId?: string;
   version: number;
   updatedAt: string;
 };

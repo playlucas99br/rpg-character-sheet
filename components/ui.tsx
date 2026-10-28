@@ -2,6 +2,7 @@
 import {
   useEffect,
   useRef,
+  useState,
   type ReactNode,
   type ButtonHTMLAttributes,
 } from "react";
@@ -79,16 +80,18 @@ export function Portrait({
   sheet,
   size = "medium",
 }: {
-  sheet: Pick<Sheet, "name" | "tone" | "type">;
+  sheet: Pick<Sheet, "name" | "tone" | "type" | "portraitAssetId">;
   size?: "small" | "medium" | "large";
 }) {
   const Icon = sheet.type === "monster" ? Skull : UserRound;
+  const [failedId, setFailedId] = useState<string>();
   return (
     <div className={`portrait ${size} ${sheet.tone}`} aria-hidden="true">
       <span className="portrait-ring" />
       <Icon />
       <span className="portrait-spark" />
       <span className="portrait-initial">{sheet.name.slice(0, 1)}</span>
+      {sheet.portraitAssetId && failedId !== sheet.portraitAssetId && <img className="portrait-photo" src={`/api/media/image?assetId=${sheet.portraitAssetId}`} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setFailedId(sheet.portraitAssetId)} />}
     </div>
   );
 }
