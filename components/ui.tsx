@@ -1,6 +1,7 @@
 "use client";
 import {
   useEffect,
+  useId,
   useRef,
   useState,
   type ReactNode,
@@ -20,6 +21,56 @@ import {
 } from "lucide-react";
 import type { Sheet, SystemId } from "../lib/game/types";
 import { systemById } from "../lib/game/systems";
+
+export function TabList({
+  id,
+  label,
+  tabs,
+  value,
+  onChange,
+  className,
+}: {
+  id: string;
+  label: string;
+  tabs: ReadonlyArray<readonly [string, string]>;
+  value: string;
+  onChange: (value: string) => void;
+  className: string;
+}) {
+  return (
+    <div className={className} role="tablist" aria-label={label}>
+      {tabs.map(([key, title], index) => (
+        <button
+          key={key}
+          type="button"
+          role="tab"
+          id={`${id}-tab-${key}`}
+          aria-controls={value === key ? `${id}-panel-${key}` : undefined}
+          aria-selected={value === key}
+          tabIndex={value === key ? 0 : -1}
+          onClick={() => onChange(key)}
+          onKeyDown={(event) => {
+            let next: number;
+            switch (event.key) {
+              case "ArrowRight": next = (index + 1) % tabs.length; break;
+              case "ArrowLeft": next = (index - 1 + tabs.length) % tabs.length; break;
+              case "Home": next = 0; break;
+              case "End": next = tabs.length - 1; break;
+              default: return;
+            }
+            event.preventDefault();
+            onChange(tabs[next][0]);
+            const target = event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next];
+            target?.focus({ preventScroll: true });
+            target?.scrollIntoView({ block: "nearest", inline: "nearest" });
+          }}
+        >
+          {title}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export function Button({
   children,
@@ -108,6 +159,7 @@ export function Modal({
   onClose: () => void;
   wide?: boolean;
 }) {
+  const titleId = useId();
   const dialog = useRef<HTMLDialogElement>(null),
     closeRef = useRef(onClose);
   closeRef.current = onClose;
@@ -132,13 +184,13 @@ export function Modal({
       onClick={(e) => {
         if (e.target === e.currentTarget) closeRef.current();
       }}
-      aria-labelledby="modal-title"
+      aria-labelledby={titleId}
     >
       <div className="modal-inner">
         <div className="modal-heading">
           <div>
             <span className="eyebrow">NEXO / SUA MESA</span>
-            <h2 id="modal-title">{title}</h2>
+            <h2 id={titleId}>{title}</h2>
             {subtitle && <p>{subtitle}</p>}
           </div>
           <button

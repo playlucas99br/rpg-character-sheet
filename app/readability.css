@@ -1,0 +1,304 @@
+/* T03: screen reading rules follow the legacy compact layouts.
+   Keep print sizing in globals.css and never shrink text to fit a viewport. */
+@media screen {
+  :root {
+    --reading-body: 1rem;
+    --reading-label: 0.875rem;
+    --reading-caption: 0.75rem;
+    --touch-target: 44px;
+  }
+
+  .sheet-screen,
+  .modal {
+    --muted: #b2bcb2;
+    --hp: #e0a19b;
+    --ep: #c4b2e1;
+    --sanity: #9bc8d8;
+    font-size: var(--reading-body);
+    line-height: 1.65;
+  }
+
+  :is(.sheet-screen, .modal) :is(.button, .text-button, .filter-pill) {
+    min-height: var(--touch-target);
+    min-width: var(--touch-target);
+    padding: 10px 14px;
+    font-size: var(--reading-label);
+    line-height: 1.5;
+  }
+
+  :is(.sheet-screen, .modal) .icon-button,
+  .sheet-screen .resource-step {
+    min-width: var(--touch-target);
+    min-height: var(--touch-target);
+    width: var(--touch-target);
+    height: var(--touch-target);
+    padding: 10px;
+    color: var(--text);
+    border: 1px solid #687966;
+    border-radius: 8px;
+    background: #ffffff08;
+  }
+
+  :is(.sheet-screen, .modal) :is(.icon-button, .resource-step) > svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  :is(.sheet-screen, .modal) :is(button, a, input, select, textarea, [role="tabpanel"]):focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  :is(.sheet-screen, .modal) [role="tab"]:focus-visible {
+    outline-offset: -4px;
+  }
+
+  :is(.sheet-screen, .modal) :is(.sheet-tabs, .editor-tabs) {
+    gap: 8px;
+    scrollbar-width: thin;
+    scroll-padding-inline: 8px;
+  }
+
+  :is(.sheet-screen, .modal) [role="tab"] {
+    min-width: var(--touch-target);
+    min-height: 48px;
+    padding: 12px 14px;
+    font-size: var(--reading-label);
+    line-height: 1.5;
+    color: var(--muted);
+  }
+
+  :is(.sheet-screen, .modal) [role="tab"][aria-selected="true"] {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    background: #c5dda90a;
+    font-weight: 600;
+  }
+
+  .sheet-screen :is(.character-title p, .panel-heading p, .attack-info > span,
+    .info-line, .info-line strong, .ritual-chip span, .private-tag, .sync-indicator) {
+    font-size: var(--reading-label);
+    line-height: 1.65;
+    color: var(--muted);
+  }
+
+  .sheet-screen :is(.system-mark, .eyebrow, .ability-cost, .attribute-chip,
+    .sheet-bottom, .roll-meta, .roll-meta time) {
+    font-size: var(--reading-caption);
+    line-height: 1.6;
+    color: var(--muted);
+  }
+
+  .sheet-screen :is(.panel-heading h3, .attack-info h4, .ability-row h4,
+    .character-about h3) {
+    font-size: 1.125rem;
+    line-height: 1.5;
+    color: var(--text);
+  }
+
+  .sheet-screen .section-title h2 { font-size: 1.25rem; line-height: 1.5; }
+
+  .sheet-screen :is(.attack-info p, .ability-row p, .character-about > p,
+    .sheet-hint p, .notes-panel > .preserve-lines, .panel-empty p, .inline-empty,
+    .roll-details strong, .roll-details > span) {
+    font-size: var(--reading-body);
+    line-height: 1.75;
+    color: #c8d0c3;
+    overflow-wrap: anywhere;
+  }
+
+  .sheet-screen :is(.attack-info, .ability-row, .notes-panel, .roll-details) {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .sheet-screen .resource-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+    gap: 16px;
+  }
+
+  .sheet-screen .resource-card {
+    padding: 16px;
+  }
+
+  .sheet-screen .resource-card > div:first-child {
+    gap: 12px;
+  }
+
+  .sheet-screen .resource-card > div:first-child > span {
+    max-width: none;
+    gap: 8px;
+    font-size: var(--reading-label);
+    line-height: 1.5;
+  }
+
+  .sheet-screen .resource-card > div:first-child > span > svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .sheet-screen .resource-value {
+    gap: 8px;
+    margin: 12px 0 16px;
+  }
+
+  .sheet-screen .resource-value > strong {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    flex-wrap: wrap;
+    min-width: 0;
+    font-size: 2rem;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.3;
+  }
+
+  .sheet-screen .resource-value strong > span {
+    font-size: var(--reading-body);
+    color: var(--muted);
+    margin-left: 6px;
+  }
+
+  .sheet-screen .resource-step {
+    flex-shrink: 0;
+    color: var(--resource-color);
+  }
+
+  .sheet-screen .resource-card progress { height: 8px; }
+
+  .sheet-screen .attributes-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 12px;
+    margin: 20px 0 28px;
+  }
+
+  .sheet-screen :is(.attribute-card, .defense-card) {
+    min-width: 0;
+    min-height: 112px;
+    padding: 14px 8px;
+  }
+
+  .sheet-screen :is(.attribute-card > span, .attribute-card > small, .defense-card > small) {
+    font-size: var(--reading-label);
+    line-height: 1.5;
+    color: var(--muted);
+    overflow-wrap: anywhere;
+  }
+
+  .sheet-screen :is(.attribute-card > strong, .defense-card strong) {
+    font-size: 2rem;
+    line-height: 1.5;
+  }
+
+  .sheet-screen .attribute-card > svg {
+    display: block;
+    opacity: 1;
+    top: 8px;
+    right: 8px;
+    color: var(--accent);
+  }
+
+  .sheet-screen .skill-row {
+    min-height: 52px;
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .sheet-screen .skill-row strong {
+    min-width: 0;
+    font-size: var(--reading-body);
+    line-height: 1.5;
+    color: var(--text);
+    overflow-wrap: anywhere;
+  }
+
+  .sheet-screen .skill-bonus {
+    flex-shrink: 0;
+    width: auto;
+    min-width: 38px;
+    font-size: var(--reading-body);
+    color: var(--accent);
+  }
+
+  .sheet-screen .skill-row .attribute-chip {
+    display: inline-block;
+    font-size: var(--reading-caption);
+    color: var(--muted);
+  }
+
+  .sheet-screen .attack-row { flex-wrap: wrap; }
+  .sheet-screen .attack-actions { gap: 8px; }
+  .sheet-screen .sheet-bottom { flex-wrap: wrap; }
+  .sheet-screen .sheet-bottom > span { max-width: none; }
+  .sheet-screen .ritual-chip { flex-wrap: wrap; }
+  .sheet-screen .roll-row { flex-wrap: wrap; }
+  .sheet-screen .roll-meta { flex-wrap: wrap; }
+
+  .sheet-screen :is(input, select, textarea),
+  .modal :is(input, select, textarea),
+  .modal .field :is(input, select, textarea) {
+    min-height: var(--touch-target);
+    font-size: var(--reading-body);
+    line-height: 1.5;
+    padding: 10px 12px;
+    border-color: #687966;
+  }
+
+  :is(.sheet-screen, .modal) :is(input, textarea)::placeholder { color: #a9b4a6; }
+
+  .modal :is(.field > span, .field small, .modal-heading p, .editor-save-hint,
+    .resource-editor > div > strong, .repeatable-heading > strong,
+    .skill-edit-header, .small, .draft-notice, .form-error) {
+    font-size: var(--reading-label);
+    line-height: 1.65;
+    color: var(--muted);
+  }
+
+  .modal .form-error { color: #f0b1aa; }
+  .modal .modal-heading .eyebrow { font-size: var(--reading-caption); }
+  .modal .modal-heading h2 { font-size: 1.5rem; }
+  .modal .tone-picker { flex-wrap: wrap; }
+  .modal .tone-picker button { width: 44px; height: 44px; }
+  .modal .skill-edit-row,
+  .modal .skill-edit-header {
+    grid-template-columns: minmax(0, 1fr) 88px 80px 44px;
+    gap: 10px;
+  }
+
+  /* One scroll container keeps fields reachable at large zoom and short heights. */
+  .modal .editor-body { max-height: none; min-height: 0; overflow: visible; }
+  .modal .modal-footer { flex-wrap: wrap; }
+
+  .sheet-screen .sync-indicator.ready { color: var(--accent); }
+  .sheet-screen :is(.sync-indicator.error, .sync-indicator.expired, .sync-indicator.offline) { color: var(--hp); }
+}
+
+@media screen and (max-width: 800px) {
+  .sheet-screen .skill-table { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media screen and (max-width: 680px) {
+  .sheet-screen .resource-grid { grid-template-columns: minmax(0, 1fr); }
+  .sheet-screen .attributes-bar { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .sheet-screen .skill-row { display: flex; }
+  .sheet-screen .attack-actions { flex-direction: row; width: 100%; margin-left: 0; }
+  .sheet-screen .attack-actions .button { flex: 1 1 100px; }
+  .sheet-screen .character-title { flex: 1 1 150px; }
+  .sheet-screen .sheet-topline { align-items: flex-start; }
+  .sheet-screen .sheet-topline > div { flex-wrap: wrap; gap: 8px; }
+  .sheet-screen .info-line { flex-wrap: wrap; gap: 6px; }
+  .sheet-screen .info-line strong { text-align: left; }
+  .modal { padding: 0; }
+  .modal .editor-tabs { padding-inline: 16px; }
+  .modal .skill-edit-header { display: none; }
+  .modal .skill-edit-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px;
+    gap: 10px;
+    padding-bottom: 16px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid #48543e;
+  }
+  .modal .skill-edit-row > input:first-child { grid-column: 1 / -1; }
+  .modal .resource-editor .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

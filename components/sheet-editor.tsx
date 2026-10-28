@@ -1,11 +1,11 @@
 "use client";
 import { randomId } from "../lib/game/id";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { Check, Plus, Trash2 } from "lucide-react";
 import type { Sheet } from "../lib/game/types";
 import { isOrdem, systemById } from "../lib/game/systems";
 import { sheetSchema } from "../lib/game/validation";
-import { Button, Field, Modal } from "./ui";
+import { Button, Field, Modal, TabList } from "./ui";
 import { draftKey, hasDraftChanges, parseDraft, reconcileDraft, type SheetDraft } from "../lib/game/drafts";
 
 const fieldNames: Record<string, string> = { name: "nome", className: "classe", origin: "origem", level: "nível", exposure: "NEX", defense: "defesa", attributes: "atributos", resources: "vida, energia ou sanidade", skills: "perícias", attacks: "ataques", rituals: "rituais", abilities: "habilidades", inventory: "equipamento", notes: "notas", description: "descrição", tone: "cor" };
@@ -25,6 +25,7 @@ export default function SheetEditor({
   onSave: (value: Sheet) => Promise<boolean>;
   onClose: () => void;
 }) {
+  const tabsId = useId();
   const [draft, setDraft] = useState<Sheet>(() => structuredClone(sheet)),
     [base, setBase] = useState<Sheet>(() => structuredClone(sheet)),
     [loaded, setLoaded] = useState(false),
@@ -89,7 +90,7 @@ export default function SheetEditor({
     ["attacks", "Ataques"],
     ["abilities", "Habilidades"],
     ["notes", "Equipamento e notas"],
-  ];
+  ] as const;
   return (
     <Modal
       title={`Editar ${sheet.type === "monster" ? "criatura" : "personagem"}`}
@@ -124,27 +125,15 @@ export default function SheetEditor({
         }}
       >
         <fieldset disabled={busy} className="editor-fields">
-        <div
+        <TabList
+          id={tabsId}
           className="editor-tabs"
-          role="tablist"
-          aria-label="Seções de edição"
-        >
-          {tabs.map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              role="tab"
-              aria-selected={tab === key}
-              onClick={() => {
-                setTab(key);
-                setError("");
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <div className="modal-body editor-body">
+          label="Seções de edição"
+          tabs={tabs}
+          value={tab}
+          onChange={(key) => { setTab(key); setError(""); }}
+        />
+        <div className="modal-body editor-body" role="tabpanel" id={`${tabsId}-panel-${tab}`} aria-labelledby={`${tabsId}-tab-${tab}`} tabIndex={0}>
           {recovery && <div className="draft-notice" role="alert">
             <strong>Há um rascunho e uma versão mais recente na conta.</strong>
             <p>Campos alterados nas duas versões: {conflicts.map((key) => fieldNames[key] || key).join(", ") || "nenhum"}. Escolha os valores desses campos. As demais edições serão preservadas.</p>
