@@ -9,7 +9,8 @@ import type {
   Workspace,
 } from "./types";
 import { canEditSheet, canSeeRoll } from "./access";
-import { campaignSchema, sheetSchema } from "./validation";
+import { campaignSchema, duplicateSheetSchema, sheetSchema } from "./validation";
+import { makeSheetCopy } from "./duplicate-sheet";
 import { newSheet, systemById } from "./systems";
 import { resolveRoll } from "./dice";
 import { ORDEM_RITUALS, ORDEM_WEAPONS } from "./ordem-library";
@@ -206,6 +207,7 @@ export async function mutate(user: User, input: Record<string, unknown>) {
       "rotate_invite",
       "remove_member",
       "create_sheet",
+      "duplicate_sheet",
       "update_sheet",
       "resource",
       "delete_sheet",
@@ -362,6 +364,20 @@ export async function mutate(user: User, input: Record<string, unknown>) {
         "INSERT INTO sheets (id,campaign_id,owner_id,type,data,version,updated_at) VALUES (?,?,?,?,?,1,?)",
       )
       .bind(sheet.id, campaignId, ownerId, type, JSON.stringify(sheet), now)
+      .run();
+    return { id: sheet.id };
+  }
+  if (action === "duplicate_sheet") {
+    const value = duplicateSheetSchema.parse(input);
+    const source = await ownedSheet(user.id, value.sheetId);
+    if (source.version !== value.version)
+      throw new GameError("A ficha mudou. Sincronize e confira os valores antes de duplicar.", 409);
+    const sheet = makeSheetCopy(source, value.name, now);
+    await db
+      .prepare(
+        "INSERT INTO sheets (id,campaign_id,owner_id,type,data,version,updated_at) VALUES (?,?,?,?,?,1,?)",
+      )
+      .bind(sheet.id, sheet.campaignId, sheet.ownerId, sheet.type, JSON.stringify(sheet), now)
       .run();
     return { id: sheet.id };
   }

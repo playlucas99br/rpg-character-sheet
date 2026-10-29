@@ -175,3 +175,34 @@ test("Realtime authorizes only campaign members and never lets clients broadcast
   });
   await denied(() => rpc(player, "list", { campaignId: "campaign-a" }));
 });
+
+test("sheet copies use the existing SQL registry and share portraits without widening access", async () => {
+  const { newSheet } = await import("../lib/game/systems.ts");
+  const { makeSheetCopy } = await import("../lib/game/duplicate-sheet.ts");
+  const insert = async (sheet) => asRole("service_role", () => db.query("select public.nexo_query($1)", [JSON.stringify([{
+    sql: "INSERT INTO sheets (id,campaign_id,owner_id,type,data,version,updated_at) VALUES (?,?,?,?,?,1,?)",
+    params: [sheet.id, sheet.campaignId, sheet.ownerId, sheet.type, JSON.stringify(sheet), sheet.updatedAt],
+  }])]));
+  await db.exec("insert into nexo.campaigns(id,name,description,system,banner,status,invite_code) values('copy-campaign','Copies','','ordem','forest','active','COPY-TEST')");
+  await db.query("insert into nexo.memberships(campaign_id,user_id,role) values('copy-campaign',$1,'gm'),('copy-campaign',$2,'player')", [gm, player]);
+  const source = { ...newSheet("ordem", "copy-campaign", player, "Player"), id: "copy-source", name: "Original", notes: "Notas preservadas" };
+  await insert(source);
+  const asset = (await create(player, { campaignId: source.campaignId, sheetId: source.id })).asset;
+  await finish(asset);
+  await rpc(player, "portrait", { assetId: asset.id, sheetId: source.id, version: 1 });
+  source.portraitAssetId = asset.id;
+  source.version = 2;
+  const copy = makeSheetCopy(source, "Cópia"), secondCopy = makeSheetCopy(source, "Cópia 2");
+  await insert(copy);
+  await insert(secondCopy);
+  assert.equal(await scalar("select data->>'portraitAssetId' as value from nexo.sheets where id=$1", [copy.id]), asset.id);
+  assert.equal(await scalar("select version as value from nexo.sheets where id=$1", [copy.id]), 1);
+  assert.equal(await scalar("select data->>'notes' as value from nexo.sheets where id=$1", [source.id]), source.notes);
+  await denied(() => rpc(other, "read", { assetId: asset.id }));
+  await db.query("delete from nexo.sheets where id=$1", [source.id]);
+  assert.equal((await rpc(player, "read", { assetId: asset.id })).asset.id, asset.id, "deleting the original sheet preserves a copy's portrait");
+  await rpc(player, "delete", { assetId: asset.id });
+  for (const sheet of [copy, secondCopy])
+    assert.equal(await scalar("select data ? 'portraitAssetId' as value from nexo.sheets where id=$1", [sheet.id]), false, "deleting the shared image clears all references");
+  await rpc(player, "delete_complete", { assetId: asset.id });
+});
