@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useId, useState } from "react";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -37,6 +37,7 @@ import {
   Portrait,
   SectionTitle,
   SystemMark,
+  TabList,
 } from "./ui";
 import SheetEditor from "./sheet-editor";
 import { RollHistory } from "./dice-panel";
@@ -82,7 +83,7 @@ function ResourceCard({
         >
           <Minus size={16} />
         </button>
-        <strong>
+        <strong aria-live="polite" aria-atomic="true">
           {r.current}
           <span>/ {r.max}</span>
         </strong>
@@ -181,6 +182,7 @@ function SkillList({
         </div>
         <button
           className={`filter-pill ${trained ? "active" : ""}`}
+          aria-pressed={trained}
           onClick={() => setTrained(!trained)}
         >
           {sheet.system === "cthulhu" ? "Com pontos" : "Treinadas"}
@@ -257,6 +259,7 @@ export default function SheetView({
   onDelete: () => Promise<boolean>;
   notify: (message: string) => void;
 }) {
+  const tabsId = useId();
   const [tab, setTab] = useState("combat"),
     [editing, setEditing] = useState<string | null>(null),
     [deleting, setDeleting] = useState(false);
@@ -356,6 +359,7 @@ export default function SheetView({
               key={a.key}
               className="attribute-card"
               title={`Rolar ${a.name}`}
+              aria-label={`Rolar ${a.name}: ${sheet.attributes[a.key]}`}
               disabled={busy}
               onClick={() => onRoll({ kind: "attribute", id: a.key })}
             >
@@ -371,23 +375,20 @@ export default function SheetView({
             <small>Defesa</small>
           </div>
         </div>
-        <div className="sheet-tabs" role="tablist" aria-label="Seções da ficha">
-          {[
+        <TabList
+          id={tabsId}
+          className="sheet-tabs"
+          label="Seções da ficha"
+          value={tab}
+          onChange={setTab}
+          tabs={[
             ["combat", "Combate e técnicas"],
             ["skills", "Perícias"],
             ["story", "História e equipamento"],
             ["history", "Rolagens"],
-          ].map(([key, label]) => (
-            <button
-              role="tab"
-              aria-selected={tab === key}
-              key={key}
-              onClick={() => setTab(key)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+          ]}
+        />
+        <div role="tabpanel" id={`${tabsId}-panel-${tab}`} aria-labelledby={`${tabsId}-tab-${tab}`} tabIndex={0}>
         {tab === "combat" && (
           <div className="sheet-content-grid">
             <div>
@@ -428,6 +429,7 @@ export default function SheetView({
                         <Button
                           disabled={busy}
                           variant="secondary"
+                          aria-label={`Rolar acerto de ${a.name}`}
                           onClick={() => onRoll({ kind: "attack", id: a.id })}
                         >
                           <Dices size={14} />
@@ -436,6 +438,7 @@ export default function SheetView({
                         <Button
                           disabled={busy}
                           variant="ghost"
+                          aria-label={`Rolar dano de ${a.name}`}
                           onClick={() =>
                             onRoll({ kind: "attack", id: a.id, damage: true })
                           }
@@ -621,6 +624,7 @@ export default function SheetView({
             <RollHistory rolls={rolls.filter((r) => r.sheetId === sheet.id)} />
           </div>
         )}
+        </div>
         <div className="sheet-bottom">
           <span>
             Ficha de {system.name} <span className="dot">·</span>{" "}

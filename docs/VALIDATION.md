@@ -51,3 +51,17 @@ Antes de integrar o PR e publicar o frontend de produção, validar com duas con
 4. Excluir o arquivo e conferir a remoção física pelo serviço Storage; remover o jogador e testar novas requisições/assinaturas.
 
 Os testes de Auth locais usam respostas controladas. O smoke hospedado testa PostgreSQL/RLS e gatilhos; não substitui login real, transporte WebSocket com JWT de jogador, envio/leitura/exclusão de bytes ou entrega de e-mail. A produção continua na `main` anterior enquanto este aceite estiver pendente. Os procedimentos estão em [OPERATIONS.md](OPERATIONS.md).
+
+# T03 — Leitura da ficha — 28/10/2026
+
+Base: `main` em `9329083a9a5384b3f6fbe1c9ef05e7466456cc6c`, após a integração da T01. A T03 ajusta a ficha e seu editor, com textos de conteúdo e campos em 16 px, rótulos em 14 px e informações auxiliares em pelo menos 12 px, usando unidades relativas. Controles têm área mínima de 44 × 44 px. Os recursos e atributos se reorganizam em telas estreitas; os campos de perícia passam a duas linhas. As cores secundárias, bordas dos controles e indicação de foco foram reforçadas. As abas aceitam setas, Home, End e Tab, com associação ao painel ativo.
+
+## Verificação da T03
+
+- 33 testes existentes passaram; geração dos tipos, TypeScript, builds Next.js/Vercel e Vinext/Sites e bundle de `nexo-game` passaram.
+- Navegador com os componentes reais e o CSS compilado, em demonstração isolada: computador com viewport de 1363 px e janelas de conteúdo de 768, 375 e 320 px. Sem transbordamento horizontal do conteúdo da ficha nessas medidas; as abas têm rolagem própria.
+- Medições dos botões visíveis da ficha no computador, em 375 e em 768 px: nenhum controle abaixo de 44 × 44 px. Em 320 px, as 28 perícias usaram texto de 16 px e linhas de pelo menos 52 px, sem transbordar.
+- Redução e recuperação de vida, mudança de aba por setas, End no editor, filtro de perícias treinadas e edição/salvamento das notas confirmados na interface. Notas do exemplo restauradas ao final. Campos de perícia no editor em 375 px mediram 16 px de fonte e 45–46 px de altura.
+- A prévia completa do servidor retornou erro neste ambiente. A conferência visual usou uma página temporária que importa `NexoApp` diretamente, com o CSS do build e os dados de demonstração existentes. Isso valida os componentes e as interações locais; não é um teste de login, Supabase ou deploy hospedado.
+
+Para repetir o aceite na aplicação, abra a demonstração, entre na ficha de Kaori Sato e confira recursos, atributos, combate, perícias, história e rolagens. Abra o editor, percorra as abas com setas/Home/End e salve uma alteração de notas. Repita em 320, 375, 768 px e no computador, conferindo foco visível, alcance dos botões e campos sem corte. A impressão continua usando as regras anteriores, pois os novos estilos se aplicam somente à tela.
