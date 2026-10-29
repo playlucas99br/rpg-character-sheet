@@ -65,3 +65,24 @@ Base: `main` em `9329083a9a5384b3f6fbe1c9ef05e7466456cc6c`, após a integração
 - A prévia completa do servidor retornou erro neste ambiente. A conferência visual usou uma página temporária que importa `NexoApp` diretamente, com o CSS do build e os dados de demonstração existentes. Isso valida os componentes e as interações locais; não é um teste de login, Supabase ou deploy hospedado.
 
 Para repetir o aceite na aplicação, abra a demonstração, entre na ficha de Kaori Sato e confira recursos, atributos, combate, perícias, história e rolagens. Abra o editor, percorra as abas com setas/Home/End e salve uma alteração de notas. Repita em 320, 375, 768 px e no computador, conferindo foco visível, alcance dos botões e campos sem corte. A impressão continua usando as regras anteriores, pois os novos estilos se aplicam somente à tela.
+
+# T04 — Retomar a última mesa — 29/10/2026
+
+Base: `main` em `ba5b6fc70ee107e7a7eca76a2a20375c236e0d2f`. Branch `feat/t04-dashboard-resume`, responsável Lucas.
+
+A visão geral destaca a última campanha e a última ficha abertas, com atalhos para dados, criação de personagem, histórico da campanha e criação de criatura para o mestre. Abrir uma ficha também registra sua campanha. Dados e criação já abrem com a campanha do destaque selecionada; o histórico aplica seu filtro. Sem acessos anteriores, a tela sugere uma campanha ativa e prioriza personagens do próprio usuário; sem campanhas, mantém a orientação inicial existente.
+
+O histórico contém somente até 12 identificadores de campanhas e fichas por contexto em `localStorage`, com chave versionada e separação por conta, demonstração de mestre e demonstração de jogador. Os nomes e valores vêm do workspace autorizado atual. Fichas excluídas, campanhas removidas e mudanças de permissão invalidam os atalhos. Armazenamento ausente, corrompido ou bloqueado não impede a navegação; nesse último caso, o histórico pode continuar somente na sessão. Alterações em outra aba são recebidas pelo evento `storage`. O histórico é deste navegador e não é sincronizado entre dispositivos.
+
+## Verificação da T04
+
+- 37 testes passaram, incluindo quatro novos cenários de histórico, serialização, isolamento de conta/modo, permissões e opções para primeiro acesso.
+- Geração de rotas e TypeScript, build Next.js/Vercel, build Vinext/Sites e bundle de `nexo-game` aprovados. Os builds dos dois frameworks precisam rodar em sequência porque ambos geram arquivos em `.next`.
+- Navegador, com os componentes reais e o CSS compilado em demonstração isolada: abertura de Kaori e Dante, atualização da campanha correspondente, retorno à visão geral e preservação de Dante/Santa Aurora após recarregar.
+- Atalho de dados selecionou Santa Aurora; histórico abriu com seu filtro ativo; criação de personagem abriu com essa campanha preenchida. Mudança para visão de jogador usou outro histórico e removeu o atalho de criação de criatura.
+- Conferência visual e medições em 320, 375 e 768 px de viewport de conteúdo, além do computador: nenhuma rolagem horizontal; cartões empilhados no celular e lado a lado no tablet; controles com altura mínima de 44 px. A ficha foi aberta por Enter no cartão.
+- A prévia Vinext completa retornou erro neste ambiente. Uma execução local Next.js sem dados reais renderizou a página, mas não ativou seus controles; por isso a validação de interação usou uma página temporária que importa `NexoApp` diretamente. O harness usa somente demonstração e não integra o PR. Login, Supabase e persistência hospedada não foram revalidados nesta tarefa.
+
+## Aceite após integração
+
+Com uma conta real, abrir uma campanha e uma ficha, voltar à visão geral e recarregar. Confirmar os destaques e testar os atalhos. Trocar de conta no mesmo navegador e confirmar que somente conteúdo da conta atual aparece. Excluir a ficha ou remover a participação em uma campanha e verificar que o destaque escolhe outro item acessível.
