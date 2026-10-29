@@ -1,6 +1,6 @@
 "use client";
 import { randomId } from "../lib/game/id";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -71,6 +71,9 @@ import OrdemLibrary from "./ordem-library";
 import SignIn from "./sign-in";
 import SyncIndicator, { SyncNotice } from "./sync-status";
 import CampaignAssets from "./campaign-assets";
+import DashboardResume from "./dashboard-resume";
+import { activityKey, resumeTargets } from "../lib/game/recent-activity";
+import { useRecentActivity } from "../lib/game/use-recent-activity";
 import { useCampaignRealtime } from "../lib/game/use-campaign-realtime";
 import { GameApiError, requestGame, type SyncStatus } from "../lib/game/client-sync";
 
@@ -284,21 +287,27 @@ export default function NexoApp({
   const signInHref = `${baseSignInHref.split("?")[0]}?return_to=${encodeURIComponent(`/${returnParams.size ? `?${returnParams}` : ""}`)}`;
   const user = demo ? DEMO_USER : realUser || DEMO_USER;
   const raw = demo ? sample : real;
-  const campaigns =
+  const campaigns = useMemo(() =>
     demo && playerPreview
       ? raw.campaigns.map((c) => ({
           ...c,
           role: "player" as const,
           inviteCode: undefined,
         }))
-      : raw.campaigns;
-  const sheets = raw.sheets.filter((s) =>
+      : raw.campaigns, [demo, playerPreview, raw.campaigns]);
+  const sheets = useMemo(() => raw.sheets.filter((s) =>
     canReadSheet(
       user.id,
       campaigns.find((c) => c.id === s.campaignId)?.role || null,
       s,
     ),
+  ), [user.id, campaigns, raw.sheets]);
+  const recentActivity = useRecentActivity(
+    activityKey(initialUser?.id, demo ? playerPreview ? "demo-player" : "demo-gm" : "account"),
+    route, campaigns, sheets, user.id, demo ? sampleLoaded : hasLoadedReal && syncStatus !== "expired",
   );
+  const resume = resumeTargets(recentActivity, campaigns, sheets, user.id);
+  const resumeCampaign = resume.campaign;
   const rolls = raw.rolls.filter(
     (r) =>
       r.visibility === "table" ||
@@ -806,7 +815,20 @@ export default function NexoApp({
                       Nova campanha
                     </Button>
                   </PageHeading>
-                  <div className="welcome-banner">
+                  {resumeCampaign ? (
+                    <DashboardResume
+                      campaign={resumeCampaign}
+                      sheet={resume.sheet}
+                      sheetCampaign={campaigns.find((c) => c.id === resume.sheet?.campaignId)}
+                      campaignVisited={resume.campaignVisited}
+                      sheetVisited={resume.sheetVisited}
+                      onCampaign={() => navigate("campaign", resumeCampaign.id)}
+                      onSheet={() => { if (resume.sheet) navigate("sheet", resume.sheet.id); }}
+                      onCreateSheet={(type) => createSheet(type, resumeCampaign.id)}
+                      onDice={() => setModal({ type: "dice", campaignId: resumeCampaign.id })}
+                      onHistory={() => { setHistoryCampaign(resumeCampaign.id); navigate("history"); }}
+                    />
+                  ) : <div className="welcome-banner">
                     <div className="hero-copy">
                       <span className="eyebrow">
                         <span className="little-line" />O PRÓXIMO CAPÍTULO É SEU
@@ -841,7 +863,7 @@ export default function NexoApp({
                         EST. 2026 / INFINITAS POSSIBILIDADES
                       </span>
                     </div>
-                  </div>
+                  </div>}
                   <div className="stats-row">
                     {[
                       {
@@ -1518,7 +1540,7 @@ export default function NexoApp({
           onClose={() => setModal(null)}
         >
           <div className="modal-body">
-            <DicePanel {...diceProps} expanded />
+            <DicePanel {...diceProps} campaigns={modalCampaign ? [modalCampaign, ...campaigns.filter((c) => c.id !== modalCampaign.id)] : campaigns} expanded />
           </div>
         </Modal>
       )}
