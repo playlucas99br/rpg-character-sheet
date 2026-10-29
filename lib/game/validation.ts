@@ -9,6 +9,11 @@ export const systemSchema = z.enum([
   "custom",
 ]);
 const shortText = z.string().trim().min(1).max(100);
+export const duplicateSheetSchema = z.object({
+  sheetId: z.string().min(1).max(100),
+  name: shortText,
+  version: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER),
+});
 const formula = z
   .string()
   .max(40)

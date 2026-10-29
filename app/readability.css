@@ -302,3 +302,13 @@
   .modal .skill-edit-row > input:first-child { grid-column: 1 / -1; }
   .modal .resource-editor .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* T05: readable copy confirmation, including long campaign and sheet names. */
+@media screen {
+  .duplicate-source { display: flex; align-items: center; gap: 16px; padding: 16px; margin-bottom: 22px; border: 1px solid #53634b; border-radius: 9px; background: #20271f; }
+  .duplicate-source .portrait { flex-shrink: 0; }
+  .duplicate-source > div { min-width: 0; overflow-wrap: anywhere; }
+  .duplicate-source strong { font-size: 1rem; line-height: 1.5; }
+  .duplicate-source p, .duplicate-source span { font-size: .875rem; line-height: 1.65; color: #b7c4af; margin-top: 4px; }
+  .duplicate-description { font-size: .875rem; line-height: 1.75; color: #c1cabc; margin-top: 16px; overflow-wrap: anywhere; }
+}

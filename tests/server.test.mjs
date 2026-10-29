@@ -508,3 +508,71 @@ test("account login and sheets survive database reopen; a stale signed-in tab ca
     rmSync(directory, { recursive: true });
   }
 });
+
+test("duplicate_sheet creates independent saved characters and GM-only creatures without trusting client ownership", async () => {
+  const sql = new DatabaseSync(":memory:");
+  env.DB = new LocalD1(sql);
+  for (const file of readdirSync(new URL("../drizzle/", import.meta.url)).filter((name) => name.endsWith(".sql")).sort())
+    sql.exec(readFileSync(new URL(`../drizzle/${file}`, import.meta.url), "utf8"));
+  try {
+    const created = await write("gm", { action: "create_campaign", campaign: { name: "Cópias", description: "", system: "ordem", banner: "forest" } });
+    const campaignId = created.data.result.id, code = created.data.campaigns[0].inviteCode;
+    await write("player", { action: "join", code });
+    await write("player2", { action: "join", code });
+    const createdSheet = await write("player", { action: "create_sheet", campaignId, type: "character", name: "Agente original" });
+    let source = createdSheet.data.sheets[0];
+    let saved = await write("player", { action: "update_sheet", sheetId: source.id, version: source.version, sheet: { ...source, notes: "D'água ? Pista secreta", inventory: "Revólver", abilities: [{ id: "pulse", name: "Pulso", cost: 1, formula: "1d6", description: "Técnica" }] } });
+    source = saved.data.sheets.find((s) => s.id === source.id);
+    await write("player", { action: "roll", campaignId, sheetId: source.id, request: { kind: "skill", id: source.skills[0].id }, visibility: "table" });
+    const adjusted = await write("player", { action: "resource", sheetId: source.id, key: "hp", delta: -5 });
+    const previousVersion = source.version;
+    source = adjusted.data.sheets.find((s) => s.id === source.id);
+    const countBefore = sql.prepare("select count(*) as total from sheets").get().total;
+    assert.equal((await write(null, { action: "duplicate_sheet", sheetId: source.id, name: "Cópia", version: source.version })).status, 401);
+    for (const actor of ["player2", "outsider"])
+      assert.equal((await write(actor, { action: "duplicate_sheet", sheetId: source.id, name: "Cópia alheia", version: source.version })).status, 403);
+    assert.equal((await write("player", { action: "duplicate_sheet", sheetId: "missing", name: "Não existe", version: 1 })).status, 404);
+    assert.equal((await write("player", { action: "duplicate_sheet", sheetId: source.id, name: "Antiga", version: previousVersion })).status, 409);
+    for (const name of ["   ", "x".repeat(101)])
+      assert.equal((await write("player", { action: "duplicate_sheet", sheetId: source.id, name, version: source.version })).status, 400);
+    assert.equal((await write("player", { action: "duplicate_sheet", sheetId: source.id, name: "Inválida" })).status, 400);
+    assert.equal(sql.prepare("select count(*) as total from sheets").get().total, countBefore);
+
+    const result = await write("player", { action: "duplicate_sheet", sheetId: source.id, version: source.version, name: "  Agente reserva  ", ownerId: "gm", campaignId: "forged", type: "monster", id: source.id, sheet: { notes: "Forged" } });
+    assert.equal(result.status, 200);
+    const copy = result.data.sheets.find((s) => s.id === result.data.result.id);
+    assert.notEqual(copy.id, source.id);
+    assert.equal(copy.name, "Agente reserva");
+    assert.equal(copy.ownerId, "player");
+    assert.equal(copy.campaignId, campaignId);
+    assert.equal(copy.type, "character");
+    assert.equal(copy.version, 1);
+    for (const field of ["resources", "attributes", "skills", "attacks", "rituals", "abilities", "notes", "inventory", "description", "defense"])
+      assert.deepEqual(copy[field], source[field], field);
+    assert.deepEqual(result.data.sheets.find((s) => s.id === source.id), source, "original is never written by duplication");
+    assert.equal(result.data.rolls.filter((r) => r.sheetId === copy.id).length, 0);
+    assert.equal(result.data.rolls.filter((r) => r.sheetId === source.id).length, 1);
+    await write("player", { action: "resource", sheetId: copy.id, key: "hp", delta: -1 });
+    assert.deepEqual((await read("player")).data.sheets.find((s) => s.id === source.id).resources, source.resources);
+    const changed = await write("player", { action: "update_sheet", sheetId: source.id, version: source.version, sheet: { ...source, notes: "Notas novas da original" } });
+    assert.equal(changed.status, 200);
+    assert.equal(changed.data.sheets.find((s) => s.id === copy.id).notes, source.notes);
+    assert.equal((await write("player", { action: "delete_sheet", sheetId: copy.id })).status, 200);
+    assert.ok((await read("player")).data.sheets.some((s) => s.id === source.id));
+
+    const monsterResult = await write("gm", { action: "create_sheet", campaignId, type: "monster", name: "Inimigo" });
+    const monster = monsterResult.data.sheets.find((s) => s.id === monsterResult.data.result.id);
+    assert.equal((await write("player", { action: "duplicate_sheet", sheetId: monster.id, name: "Vazamento", version: monster.version })).status, 403);
+    const monsterCopy = await write("gm", { action: "duplicate_sheet", sheetId: monster.id, name: "Inimigo 2", version: monster.version });
+    assert.equal(monsterCopy.status, 200);
+    assert.equal(monsterCopy.data.sheets.find((s) => s.id === monsterCopy.data.result.id).type, "monster");
+    assert.ok(!(await read("player")).data.sheets.some((s) => s.type === "monster"));
+    const gmCharacterCopy = await write("gm", { action: "duplicate_sheet", sheetId: source.id, name: "Reserva do jogador", version: changed.data.sheets.find((s) => s.id === source.id).version });
+    assert.equal(gmCharacterCopy.data.sheets.find((s) => s.id === gmCharacterCopy.data.result.id).ownerId, "player");
+    await write("gm", { action: "remove_member", campaignId, memberId: "player" });
+    assert.equal((await write("player", { action: "duplicate_sheet", sheetId: source.id, name: "Depois da remoção", version: source.version })).status, 403);
+  } finally {
+    sql.close();
+    delete env.DB;
+  }
+});
