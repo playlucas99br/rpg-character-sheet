@@ -86,3 +86,29 @@ O histórico contém somente até 12 identificadores de campanhas e fichas por c
 ## Aceite após integração
 
 Com uma conta real, abrir uma campanha e uma ficha, voltar à visão geral e recarregar. Confirmar os destaques e testar os atalhos. Trocar de conta no mesmo navegador e confirmar que somente conteúdo da conta atual aparece. Excluir a ficha ou remover a participação em uma campanha e verificar que o destaque escolhe outro item acessível.
+
+# T05 — Duplicação de fichas — 29/10/2026
+
+Base: `main` em `dc7e00bbd967ba8814f157883799a4b038e96478`, após a integração da T04. Branch `feat/t05-duplicate-sheets`, responsável Lucas.
+
+O botão **Duplicar ficha** abre uma confirmação com o nome sugerido, campanha e dono. Nomes como “Abissal (cópia)” e “Abissal (cópia 2)” permitem criar inimigos semelhantes sem preencher a ficha novamente. O nome pode ser editado, respeitando o limite de 100 caracteres e preservando Unicode válido. Após confirmar, a interface abre a nova ficha.
+
+A cópia preserva sistema, tipo, campanha, dono, atributos, recursos atuais, defesa, ataques, técnicas, rituais, inventário, anotações e retrato. Ela recebe novo UUID, versão 1 e nova data. Não altera a original e começa sem as rolagens e os rascunhos da outra ficha. O retrato compartilha o arquivo existente: a janela informa que excluir essa imagem remove o retrato de ambas. Não há cópia entre campanhas nem alteração de dono nesse fluxo.
+
+## Verificação da T05
+
+- 41 testes aprovados. Os novos cenários cobrem os seis sistemas, cópia profunda dos campos e detalhes de rituais, sugestões de nome, limites e Unicode, identidade independente, versão inicial, preservação da original e alterações separadas dos recursos/anotações.
+- A API real com SQLite confirmou a cópia persistida entre requisições, bloqueio de sessão ausente/terceiros/jogadores tentando copiar criaturas, validação de nomes e versões, `409` para origem desatualizada, dono/campanha/tipo forjados ignorados e revogação após remoção da campanha.
+- PostgreSQL/PGlite confirmou o uso do INSERT já autorizado, manutenção das permissões do retrato, leitura da imagem após excluir a ficha original e remoção das referências das cópias após excluir a imagem.
+- TypeScript, build Vinext/Sites, build Next.js/Vercel e bundle da Edge Function aprovados. As 23 consultas literais do servidor permaneceram iguais; não foi necessária migração, alteração de RLS ou novas credenciais.
+- Validação visual pendente: a revisão automática do navegador bloqueou o acesso à prévia por limite de uso. Nenhuma conferência de layout ou interação visual da T05 foi concluída. Os arquivos temporários de prévia não fazem parte do PR.
+
+## Backend publicado
+
+A função `nexo-game` do projeto `nexo-rpg` foi atualizada da versão 2 para a versão 3, estado `ACTIVE`. O código publicado foi lido novamente e corresponde ao bundle validado. A autenticação própria e a configuração anterior `verify_jwt=false` foram preservadas. Nenhum registro de jogador foi alterado para teste.
+
+Chamadas hospedadas sem sessão e com JWT inválido retornaram `401`, antes de qualquer gravação.
+
+## Aceite visual e com conta real
+
+Na prévia do PR, abrir um personagem e selecionar **Duplicar ficha**. Conferir o nome sugerido, cancelar e repetir confirmando. Verificar a abertura da cópia, recarregar, mudar PV/anotações nela e conferir a original. Repetir com uma criatura como mestre e confirmar que jogadores não a enxergam. Testar o formulário em 320 e 375 px, foco pelo teclado, nome vazio e nomes longos. Se houver retrato, conferir o aviso e a imagem compartilhada.

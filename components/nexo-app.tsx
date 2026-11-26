@@ -43,7 +43,8 @@ import { createDemo } from "../lib/game/demo";
 import { newSheet, SYSTEMS, systemById } from "../lib/game/systems";
 import { resolveRoll } from "../lib/game/dice";
 import { ORDEM_RITUALS, ORDEM_WEAPONS } from "../lib/game/ordem-library";
-import { campaignSchema, sheetSchema } from "../lib/game/validation";
+import { campaignSchema, duplicateSheetSchema, sheetSchema } from "../lib/game/validation";
+import { makeSheetCopy, suggestedCopyName } from "../lib/game/duplicate-sheet";
 import { canReadSheet } from "../lib/game/access";
 import {
   Button,
@@ -72,6 +73,7 @@ import SignIn from "./sign-in";
 import SyncIndicator, { SyncNotice } from "./sync-status";
 import CampaignAssets from "./campaign-assets";
 import DashboardResume from "./dashboard-resume";
+import DuplicateSheetForm from "./duplicate-sheet-form";
 import { activityKey, resumeTargets } from "../lib/game/recent-activity";
 import { useRecentActivity } from "../lib/game/use-recent-activity";
 import { useCampaignRealtime } from "../lib/game/use-campaign-realtime";
@@ -92,6 +94,7 @@ type ModalState = {
     | "campaign"
     | "join"
     | "new-sheet"
+    | "duplicate-sheet"
     | "edit-campaign"
     | "members"
     | "dice"
@@ -99,6 +102,7 @@ type ModalState = {
     | "profile";
   campaignId?: string;
   sheetType?: Sheet["type"];
+  sheetId?: string;
   system?: SystemId;
 } | null;
 type Result = { id?: string; roll?: Roll };
@@ -166,6 +170,14 @@ function demoMutation(
     if (!sheet.name) throw new Error("Informe o nome.");
     state.sheets.unshift(sheet);
     result = { id: sheet.id };
+  } else if (input.action === "duplicate_sheet") {
+    const value = duplicateSheetSchema.parse(input);
+    const source = state.sheets.find((s) => s.id === value.sheetId);
+    if (!source) throw new Error("Ficha não encontrada.");
+    if (source.version !== value.version) throw new Error("A ficha mudou. Confira os valores antes de duplicar.");
+    const copy = makeSheetCopy(source, value.name, now);
+    state.sheets.unshift(copy);
+    result = { id: copy.id };
   } else if (input.action === "update_sheet") {
     const index = state.sheets.findIndex((s) => s.id === input.sheetId);
     if (index < 0) throw new Error("Ficha não encontrada.");
@@ -316,7 +328,8 @@ export default function NexoApp({
   );
   const currentCampaign = campaigns.find((c) => c.id === route.id),
     currentSheet = sheets.find((s) => s.id === route.id),
-    modalCampaign = campaigns.find((c) => c.id === modal?.campaignId);
+    modalCampaign = campaigns.find((c) => c.id === modal?.campaignId),
+    modalSheet = sheets.find((s) => s.id === modal?.sheetId);
   const notify = useCallback(
     (text: string, error = false) => setToast({ text, error }),
     [],
@@ -1232,6 +1245,7 @@ export default function NexoApp({
                     rolls={rolls}
                     busy={busy}
                     onBack={() => navigate("campaign", currentSheet.campaignId)}
+                    onDuplicate={() => setModal({ type: "duplicate-sheet", sheetId: currentSheet.id, campaignId: currentSheet.campaignId })}
                     onSave={async (s) => {
                       const result = await mutation({
                         action: "update_sheet",
@@ -1509,6 +1523,24 @@ export default function NexoApp({
               notify("Ficha criada. Dê vida à sua história.");
             }
             return !!result;
+          }}
+        />
+      )}
+      {modal?.type === "duplicate-sheet" && modalSheet && modalCampaign && (
+        <DuplicateSheetForm
+          key={modalSheet.id}
+          sheet={modalSheet}
+          campaign={modalCampaign}
+          suggestedName={suggestedCopyName(modalSheet.name, sheets.filter((s) => s.campaignId === modalSheet.campaignId).map((s) => s.name))}
+          busy={busy}
+          onClose={() => setModal(null)}
+          onDuplicate={async (name) => {
+            const result = await mutation({ action: "duplicate_sheet", sheetId: modalSheet.id, name, version: modalSheet.version });
+            if (!result?.id) return false;
+            setModal(null);
+            navigate("sheet", result.id);
+            notify("Cópia criada. Sua nova ficha está pronta.");
+            return true;
           }}
         />
       )}
