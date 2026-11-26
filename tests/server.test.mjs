@@ -5,6 +5,7 @@ import { DatabaseSync } from "node:sqlite";
 import { readFileSync, readdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { masterPanelFor } from "../lib/game/master-panel.ts";
 
 // Only this test process replaces platform bindings. Production has no mock path.
 registerHooks({
@@ -264,6 +265,16 @@ test("API → SQLite → response: campaign, invitations, ownership, resources, 
       13,
       "state survives another request",
     );
+    const gmWorkspace = (await read("gm")).data;
+    const playerWorkspace = (await read("player")).data;
+    const gmPanel = masterPanelFor(gmWorkspace.campaigns[0], gmWorkspace.sheets);
+    const panelCharacter = gmPanel.characters.find((sheet) => sheet.id === pc.id);
+    assert.deepEqual(panelCharacter.resources.hp, { current: 13, max: 20 });
+    assert.deepEqual(panelCharacter.resources.ep, pc.resources.ep);
+    assert.deepEqual(panelCharacter.resources.sanity, pc.resources.sanity);
+    assert.equal(panelCharacter.defense, pc.defense);
+    assert.deepEqual(gmPanel.creatures.map((sheet) => sheet.id), [monsterId]);
+    assert.equal(masterPanelFor(playerWorkspace.campaigns[0], playerWorkspace.sheets), null);
     assert.equal(
       (
         await write("player", {
