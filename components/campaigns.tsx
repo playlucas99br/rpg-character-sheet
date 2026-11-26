@@ -6,6 +6,7 @@ import {
   Users,
   Plus,
   Copy,
+  FileUp,
   RefreshCw,
   UserMinus,
   Check,
@@ -484,6 +485,7 @@ export function CampaignDetail({
   onBack,
   onSheet,
   onCreate,
+  onImport,
   onEdit,
   onMembers,
 }: {
@@ -492,6 +494,7 @@ export function CampaignDetail({
   onBack: () => void;
   onSheet: (id: string) => void;
   onCreate: (type: Sheet["type"]) => void;
+  onImport: () => void;
   onEdit: () => void;
   onMembers: () => void;
 }) {
@@ -528,6 +531,7 @@ export function CampaignDetail({
           <span className="muted">{campaign.members.length} participantes</span>
         </div>
         <div>
+          <Button variant="secondary" className="import-sheet-trigger" onClick={onImport}><FileUp size={17} />Importar JSON</Button>
           <Button variant="secondary" onClick={onMembers}>
             <Users size={16} />
             {campaign.role === "gm" ? "Convidar e gerenciar" : "Participantes"}

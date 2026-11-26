@@ -112,3 +112,30 @@ Chamadas hospedadas sem sessão e com JWT inválido retornaram `401`, antes de q
 ## Aceite visual e com conta real
 
 Na prévia do PR, abrir um personagem e selecionar **Duplicar ficha**. Conferir o nome sugerido, cancelar e repetir confirmando. Verificar a abertura da cópia, recarregar, mudar PV/anotações nela e conferir a original. Repetir com uma criatura como mestre e confirmar que jogadores não a enxergam. Testar o formulário em 320 e 375 px, foco pelo teclado, nome vazio e nomes longos. Se houver retrato, conferir o aviso e a imagem compartilhada.
+
+# T06 — Importar fichas JSON — 26/11/2026
+
+Base: `main` em `a00775d0036cf16a53654cb50d974930ebe0f880`, após a integração da T05. Branch `feat/t06-import-json`, responsável Lucas.
+
+**Importar JSON** está disponível em Minhas fichas, Bestiário para mestres e na campanha. O formulário lê a exportação `nexo-sheet` versão 1, limita o arquivo a 128 KiB, mostra personagem/criatura e sistema e pede nome e campanha compatível. O mestre pode escolher o dono de um personagem entre os participantes. Sem campanha elegível, há um atalho para criar uma do sistema do arquivo. A importação sempre cria outra ficha, abre seu detalhe e preserva os recursos atuais, atributos, ataques, habilidades, rituais, inventário e anotações.
+
+IDs, conta, campanha, retrato, versão e data da exportação não são reutilizados como identidade. A nova ficha recebe UUID, versão 1 e nova data, sem histórico de rolagens nem rascunhos antigos. A interface informa que o retrato precisa ser enviado novamente. Não há sobrescrita nem repetição automática de gravações.
+
+## Verificação da T06
+
+- 47 testes passaram. Os novos cenários cobrem exportações dos seis sistemas como personagens e criaturas, cópia profunda, detalhes de rituais, BOM, exportações antigas sem rituais, formato/versão inválidos, limite em bytes UTF-8, atributos, referências de ataques, fórmulas e campos inválidos.
+- A API real com SQLite confirmou o INSERT independente, repetição do mesmo arquivo gerando outro ID, recursos/anotações preservados, ausência de rolagens herdadas e original intacta. Foram verificados sessão ausente, conta antiga, terceiros, sistema diferente, dono forjado, atribuição pelo mestre, criaturas privadas e remoção da campanha.
+- TypeScript, build Vinext/Sites, build Next.js/Vercel e bundle da Edge Function aprovados. As 23 consultas literais do servidor permaneceram iguais; nenhuma migração, política RLS, dependência ou credencial foi adicionada.
+- Navegador com `NexoApp` e CSS compilado em demonstração isolada: arquivo válido, prévia, nome obrigatório, destino do mesmo sistema, abertura da ficha, equipamentos/anotações, histórico vazio, recarga e alteração independente de PV. Arquivo de versão 99 recusado; visão de jogador não ofereceu destino para criatura.
+- Computador de 1363 px e janelas de conteúdo de 320, 375 e 768 px: sem rolagem horizontal do formulário. A conferência encontrou uma regra antiga que escondia botões secundários no celular; o atalho de importação recebeu regra própria e passou na nova conferência. Importação concluída em 320 px, com botões de pelo menos 44 px e campo de nome com fonte de 16 px. Nenhum erro do aplicativo foi capturado no console da demonstração.
+- A página temporária de QA importa os componentes reais e usa somente dados fictícios; não integra o PR. Essa conferência não comprova login ou persistência no Supabase hospedado.
+
+## Backend publicado
+
+A função `nexo-game` do projeto `nexo-rpg` foi atualizada para a versão 5, estado `ACTIVE`. A versão 4 anterior continha o mesmo código da versão 3 da T05. O código publicado foi lido novamente e corresponde ao bundle validado. A autenticação própria e `verify_jwt=false` foram preservados. Nenhum registro de jogador foi alterado para teste.
+
+Chamadas hospedadas sem sessão e com JWT inválido, incluindo o comando `import_sheet`, retornaram `401` antes de qualquer gravação.
+
+## Aceite com conta real
+
+Na prévia do PR, exportar um personagem, importar para uma campanha do mesmo sistema e recarregar. Conferir recursos/anotações e editar a nova ficha sem alterar a original. Como mestre, importar para outro participante e importar uma criatura; como jogador, confirmar que a criatura não aparece. Enviar o retrato novamente quando necessário. O fluxo positivo hospedado com contas reais ainda precisa desse aceite.

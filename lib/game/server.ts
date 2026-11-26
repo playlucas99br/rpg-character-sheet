@@ -11,6 +11,7 @@ import type {
 import { canEditSheet, canSeeRoll } from "./access";
 import { campaignSchema, duplicateSheetSchema, sheetSchema } from "./validation";
 import { makeSheetCopy } from "./duplicate-sheet";
+import { makeImportedSheet, validateSheetImport } from "./sheet-import";
 import { newSheet, systemById } from "./systems";
 import { resolveRoll } from "./dice";
 import { ORDEM_RITUALS, ORDEM_WEAPONS } from "./ordem-library";
@@ -207,6 +208,7 @@ export async function mutate(user: User, input: Record<string, unknown>) {
       "rotate_invite",
       "remove_member",
       "create_sheet",
+      "import_sheet",
       "duplicate_sheet",
       "update_sheet",
       "resource",
@@ -364,6 +366,25 @@ export async function mutate(user: User, input: Record<string, unknown>) {
         "INSERT INTO sheets (id,campaign_id,owner_id,type,data,version,updated_at) VALUES (?,?,?,?,?,1,?)",
       )
       .bind(sheet.id, campaignId, ownerId, type, JSON.stringify(sheet), now)
+      .run();
+    return { id: sheet.id };
+  }
+  if (action === "import_sheet") {
+    const document = validateSheetImport(input.document);
+    const campaignId = idSchema.parse(input.campaignId);
+    const role = await membership(user.id, campaignId);
+    if (document.sheet.type === "monster" && role !== "gm")
+      throw new GameError("Somente o mestre pode importar criaturas.", 403);
+    const campaign = await db.prepare("SELECT system FROM campaigns WHERE id=?").bind(campaignId).first<{ system: Sheet["system"] }>();
+    if (!campaign || campaign.system !== document.sheet.system)
+      throw new GameError("Escolha uma campanha do mesmo sistema da ficha.");
+    const ownerId = role === "gm" && document.sheet.type === "character" && input.ownerId ? idSchema.parse(input.ownerId) : user.id;
+    await membership(ownerId, campaignId);
+    const owner = await db.prepare("SELECT name FROM profiles WHERE id = ?").bind(ownerId).first<{ name: string }>();
+    const sheet = makeImportedSheet(document, campaignId, { id: ownerId, name: owner?.name || user.name }, z.string().trim().min(1).max(100).parse(input.name), now);
+    await db
+      .prepare("INSERT INTO sheets (id,campaign_id,owner_id,type,data,version,updated_at) VALUES (?,?,?,?,?,1,?)")
+      .bind(sheet.id, campaignId, ownerId, sheet.type, JSON.stringify(sheet), now)
       .run();
     return { id: sheet.id };
   }
