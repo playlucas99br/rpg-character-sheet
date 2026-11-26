@@ -13,6 +13,7 @@ import {
   Dices,
   Eye,
   EyeOff,
+  FileUp,
   FlaskConical,
   FolderOpen,
   History,
@@ -45,6 +46,7 @@ import { resolveRoll } from "../lib/game/dice";
 import { ORDEM_RITUALS, ORDEM_WEAPONS } from "../lib/game/ordem-library";
 import { campaignSchema, duplicateSheetSchema, sheetSchema } from "../lib/game/validation";
 import { makeSheetCopy, suggestedCopyName } from "../lib/game/duplicate-sheet";
+import { makeImportedSheet, validateSheetImport } from "../lib/game/sheet-import";
 import { canReadSheet } from "../lib/game/access";
 import {
   Button,
@@ -74,6 +76,7 @@ import SyncIndicator, { SyncNotice } from "./sync-status";
 import CampaignAssets from "./campaign-assets";
 import DashboardResume from "./dashboard-resume";
 import DuplicateSheetForm from "./duplicate-sheet-form";
+import ImportSheetForm from "./import-sheet-form";
 import { activityKey, resumeTargets } from "../lib/game/recent-activity";
 import { useRecentActivity } from "../lib/game/use-recent-activity";
 import { useCampaignRealtime } from "../lib/game/use-campaign-realtime";
@@ -95,6 +98,7 @@ type ModalState = {
     | "join"
     | "new-sheet"
     | "duplicate-sheet"
+    | "import-sheet"
     | "edit-campaign"
     | "members"
     | "dice"
@@ -168,6 +172,15 @@ function demoMutation(
       if (weapon && skill) sheet.attacks = [{ id: `library-${weapon.id}`, name: weapon.name, skillId: skill.id, damage: weapon.damage, range: weapon.range, critical: weapon.critical, description: `${weapon.category}. Adicionada da biblioteca de Ordem Paranormal.` }];
     }
     if (!sheet.name) throw new Error("Informe o nome.");
+    state.sheets.unshift(sheet);
+    result = { id: sheet.id };
+  } else if (input.action === "import_sheet") {
+    const document = validateSheetImport(input.document);
+    const campaign = state.campaigns.find((c) => c.id === input.campaignId);
+    if (!campaign || campaign.system !== document.sheet.system) throw new Error("Escolha uma campanha do mesmo sistema da ficha.");
+    if (document.sheet.type === "monster" && campaign.role !== "gm") throw new Error("Somente o mestre pode importar criaturas.");
+    const owner = campaign.role === "gm" && document.sheet.type === "character" ? campaign.members.find((m) => m.id === input.ownerId) || DEMO_USER : DEMO_USER;
+    const sheet = makeImportedSheet(document, campaign.id, owner, String(input.name || ""), now);
     state.sheets.unshift(sheet);
     result = { id: sheet.id };
   } else if (input.action === "duplicate_sheet") {
@@ -1109,6 +1122,7 @@ export default function NexoApp({
                     onBack={() => navigate("campaigns")}
                     onSheet={(id) => navigate("sheet", id)}
                     onCreate={(type) => createSheet(type, currentCampaign.id)}
+                    onImport={() => setModal({ type: "import-sheet", campaignId: currentCampaign.id })}
                     onEdit={() =>
                       setModal({
                         type: "edit-campaign",
@@ -1151,6 +1165,7 @@ export default function NexoApp({
                         : "Acompanhe seus personagens e as fichas das campanhas que você mestra."
                     }
                   >
+                    {(route.page !== "bestiary" || canCreateThreat) && <Button variant="secondary" className="import-sheet-trigger" onClick={() => setModal({ type: "import-sheet", campaignId: filter !== "all" ? filter : undefined })}><FileUp size={17} />Importar JSON</Button>}
                     {(route.page !== "bestiary" || canCreateThreat) && <Button
                       onClick={() =>
                         createSheet(
@@ -1523,6 +1538,24 @@ export default function NexoApp({
               notify("Ficha criada. Dê vida à sua história.");
             }
             return !!result;
+          }}
+        />
+      )}
+      {modal?.type === "import-sheet" && (
+        <ImportSheetForm
+          campaigns={campaigns}
+          initialCampaignId={modal.campaignId}
+          user={user}
+          busy={busy}
+          onClose={() => setModal(null)}
+          onCreateCampaign={(system) => createCampaign(system)}
+          onImport={async (value) => {
+            const result = await mutation({ action: "import_sheet", ...value });
+            if (!result?.id) return false;
+            setModal(null);
+            navigate("sheet", result.id);
+            notify("Ficha importada. Sua nova ficha está pronta.");
+            return true;
           }}
         />
       )}

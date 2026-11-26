@@ -312,3 +312,19 @@
   .duplicate-source p, .duplicate-source span { font-size: .875rem; line-height: 1.65; color: #b7c4af; margin-top: 4px; }
   .duplicate-description { font-size: .875rem; line-height: 1.75; color: #c1cabc; margin-top: 16px; overflow-wrap: anywhere; }
 }
+
+/* T06: file validation and import destination remain readable on narrow screens. */
+@media screen {
+  .button.import-sheet-trigger, .page-heading .heading-actions .button.import-sheet-trigger { display: inline-flex; min-height: 44px; min-width: 44px; font-size: .875rem; }
+  .import-sheet-body { overflow-wrap: anywhere; }
+  .import-sheet-body input[type="file"] { width: 100%; min-width: 0; padding: 10px; font-size: 1rem; }
+  .import-sheet-body input[type="file"]::file-selector-button { min-height: 44px; margin-right: 12px; padding: 8px 12px; border: 1px solid #73866b; border-radius: 6px; background: #2d3828; color: #e8f0e1; font: inherit; cursor: pointer; }
+  .import-summary { display: flex; align-items: flex-start; gap: 16px; padding: 16px; margin: 18px 0; border: 1px solid #53634b; border-radius: 9px; background: #20271f; }
+  .import-summary > svg { flex-shrink: 0; color: var(--accent); }
+  .import-summary > div { min-width: 0; }
+  .import-summary strong { font-size: 1rem; line-height: 1.5; }
+  .import-summary p, .import-summary span { display: block; font-size: .875rem; line-height: 1.65; color: #c1cdbc; margin-top: 4px; }
+  .import-summary small { display: block; margin-top: 8px; font-size: .75rem; color: #b5c0af; }
+  .import-hint { font-size: .875rem; line-height: 1.65; color: #b7c4af; margin: 8px 0 16px; }
+  .import-notice, .import-no-campaign p { font-size: 1rem; line-height: 1.65; color: #d2dfc6; margin: 16px 0; }
+}

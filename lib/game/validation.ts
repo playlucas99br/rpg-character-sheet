@@ -34,6 +34,16 @@ const resource = z
     (r) => r.current <= r.max,
     "O valor atual não pode superar o máximo.",
   );
+const ritualDetailsSchema = z.object({
+  execution: z.string().max(1000).optional(),
+  range: z.string().max(1000).optional(),
+  target: z.string().max(1000).optional(),
+  area: z.string().max(1000).optional(),
+  effect: z.string().max(1000).optional(),
+  duration: z.string().max(1000).optional(),
+  resistance: z.string().max(1000).optional(),
+  description: z.array(z.string().max(4000)).max(40),
+});
 export const sheetSchema = z
   .object({
     name: shortText,
@@ -79,6 +89,7 @@ export const sheetSchema = z
           circle: z.number().int().min(1).max(4),
           summary: z.string().max(500),
           sourcePage: z.number().int().min(1).max(400),
+          details: ritualDetailsSchema.optional(),
         }),
       )
       .max(100)
