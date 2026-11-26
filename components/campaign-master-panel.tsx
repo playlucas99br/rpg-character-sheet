@@ -79,7 +79,7 @@ export default function CampaignMasterPanel({
   return (
     <div className="campaign-master-panel">
       <PageHeading title="Painel do mestre" description={roster.campaign.name}>
-        <Button type="button" variant="secondary" onClick={onBack}>
+        <Button type="button" variant="ghost" onClick={onBack}>
           <ArrowLeft size={17} aria-hidden="true" />
           Voltar à campanha
         </Button>
