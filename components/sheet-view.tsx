@@ -47,6 +47,8 @@ import type { SyncStatus } from "../lib/game/client-sync";
 import { InventoryList } from "./inventory-list";
 import { InventoryCounterControls } from "./inventory-counter-controls";
 import type { InventoryCounterOperation } from "../lib/game/inventory-counters";
+import { availabilityWarning, type TechniqueControl } from "../lib/game/techniques";
+import { AbilityTrackingSummary, TechniqueControls } from "./technique-controls";
 
 function ResourceCard({
   sheet,
@@ -245,6 +247,8 @@ export default function SheetView({
   onSave,
   onResource,
   onInventoryCounter,
+  onUseAbility,
+  onTechniqueControl,
   onRoll,
   onDelete,
   onDuplicate,
@@ -262,6 +266,8 @@ export default function SheetView({
   onSave: (s: Sheet) => Promise<boolean>;
   onResource: (key: ResourceKey, delta: number) => Promise<boolean>;
   onInventoryCounter: (itemId: string, operation: InventoryCounterOperation, amount: number) => Promise<boolean>;
+  onUseAbility: (abilityId: string) => Promise<boolean>;
+  onTechniqueControl: (control: TechniqueControl) => Promise<boolean>;
   onRoll: (request: RollRequest) => void;
   onDelete: () => Promise<boolean>;
   onDuplicate: () => void;
@@ -521,17 +527,20 @@ export default function SheetView({
                           {a.cost} {sheet.system === "jujutsu" ? "EA" : "PE"}
                         </span>
                         <h4>{a.name}</h4>
+                        <AbilityTrackingSummary ability={a} />
                         <p>
                           {a.description ||
                             "Uma habilidade à espera de sua descrição."}
                         </p>
                         <Button
                           variant="secondary"
-                          disabled={busy || sheet.resources.ep.current < a.cost}
+                          disabled={busy}
                           onClick={() => {
+                            const warning = availabilityWarning(sheet, a);
+                            if (warning) { notify(warning); return; }
                             if (a.formula)
                               onRoll({ kind: "ability", id: a.id });
-                            else void onResource("ep", -a.cost);
+                            else void onUseAbility(a.id);
                           }}
                         >
                           {a.formula ? <Dices size={14} /> : <Zap size={14} />}
@@ -556,6 +565,7 @@ export default function SheetView({
                     </button>
                   </div>
                 )}
+                <TechniqueControls sheet={sheet} busy={busy} onControl={onTechniqueControl} onWarning={notify} />
               </div>
             </div>
             <aside>
@@ -691,9 +701,11 @@ export default function SheetView({
           </p>
         ))}
         {sheet.abilities.map((a) => (
-          <p key={a.id}>
-            <b>{a.name}</b> · Custo {a.cost} · {a.formula} · {a.description}
-          </p>
+          <div key={a.id}>
+            <p><b>{a.name}</b> · Custo {a.cost} · {a.formula} · {a.description}</p>
+            <AbilityTrackingSummary ability={a} />
+            {a.tracking?.counters?.map((counter) => <p key={counter.id}>{counter.name}: {counter.current}/{counter.max}</p>)}
+          </div>
         ))}
         <h2>História</h2>
         <p className="preserve-lines">{sheet.description}</p>

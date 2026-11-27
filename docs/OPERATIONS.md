@@ -177,7 +177,7 @@ Ao adicionar um sistema, mantenha o sistema de campanhas existentes estável. Ca
 
 ## Publicação do bloco T08–T10 e modais
 
-O frontend de encontros e condições usa o schema 3 e o backend `nexo-game` versão 7, ambos ativos. Os PRs restantes #12 e #13 apontam para `main`; integrar #12 e depois #13 para publicar também a interface completa.
+O frontend de encontros e condições usa o schema 3. Os PRs #12 e #13 já foram integrados na `main`. O backend da publicação inicial era `nexo-game` versão 7 e foi atualizado para a versão 8 no bloco T11–T13.
 
 A migração `supabase/migrations/20261127225523_campaign_encounters.sql` corresponde à versão registrada no serviço. Preservar a autenticação própria da função e manter as tabelas privadas ao navegador. O aceite com duas sessões reais continua no roteiro de validação.
 
@@ -185,4 +185,12 @@ A migração `supabase/migrations/20261127225523_campaign_encounters.sql` corres
 
 Migração `20261127225523_campaign_encounters.sql` aplicada, schema 3 pronto e `nexo-game` versão 7 ativa. O bundle publicado corresponde ao código conferido e inclui `create_encounter` e as ações de condições. O arquivo local usa a versão devolvida pelo histórico remoto para evitar reaplicar a mesma migração com outro timestamp.
 
-O smoke `supabase/tests/encounters-smoke.sql` pode ser executado administrativamente após a publicação; ele cria fixtures somente dentro de uma subtransação desfeita e confirma que os registros e Broadcasts foram removidos. O mesmo SQL integra os testes PGlite. Para publicar o frontend, os PRs #12 e #13 apontam para `main`; integrar nessa ordem, pois #11 havia entrado apenas na antiga branch da T08.
+O smoke `supabase/tests/encounters-smoke.sql` pode ser executado administrativamente após a publicação; ele cria fixtures somente dentro de uma subtransação desfeita e confirma que os registros e Broadcasts foram removidos. O mesmo SQL integra os testes PGlite. Os PRs #12 e #13 já estão na `main`, incluindo as mudanças que #11 havia levado à antiga branch da T08.
+
+## Publicação de inventário, munição e técnicas — 27/11/2026
+
+`nexo-game` versão 8 está ativa e o código devolvido pelo serviço é idêntico ao bundle validado. Inclui os campos opcionais e ações de T11–T13. O schema permanece na versão 3: não executar nova migração para este bloco. A autenticação própria da função e a configuração existente foram preservadas.
+
+Os PRs #14 (T11), #15 (T12) e #16 (T13) apontam para `main`. Integrar nessa ordem. As branches posteriores incluem suas dependências para permitir teste completo; após cada merge, a diferença do próximo PR diminui automaticamente. Não integrar as entregas somente em uma branch antiga de tarefa.
+
+Cada PR contém **Roteiro de teste**, com passos e resultados esperados. Essa exigência também está no `AGENTS.md`. A suíte final passou em 101 testes, TypeScript, builds Next.js/Vercel e Vinext/Sites e bundle Supabase; o navegador local confirmou os fluxos em computador e celular. Esses testes não substituem o aceite com login e duas contas reais no serviço hospedado.

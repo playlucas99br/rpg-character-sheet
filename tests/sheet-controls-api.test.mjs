@@ -142,3 +142,96 @@ test("inventory counters persist exact changes, reject limits and stale writes, 
   assert.equal((await request("player", adjustment(current, 1))).status, 400);
   assert.equal(current.inventory, "Texto antigo");
 }));
+
+const technique = (formula = "") => ({ id: "technique", name: "Espada da sorte", cost: 2, formula, description: "Regra da mesa", tracking: { uses: { current: 2, max: 2 }, cooldown: { rounds: 2, remaining: 0 }, counters: [{ id: "luck", name: "Sorte", current: 2, max: 3 }] } });
+const techniqueAction = (sheet, control) => ({ action: "technique_control", sheetId: sheet.id, version: sheet.version, control });
+
+test("techniques without dice spend once and manual controls preserve energy and custom counters", async () => gameFixture(async ({ sheet }) => {
+  let response = await edit("player", { ...sheet, abilities: [technique()] });
+  let current = savedSheet(response, sheet.id);
+  const energy = current.resources.ep.current;
+  const use = (s) => ({ action: "use_ability", sheetId: s.id, version: s.version, abilityId: "technique" });
+  for (const actor of [null, "other-player", "outsider"]) {
+    assert.equal((await request(actor, use(current))).status, actor ? 403 : 401);
+    assert.equal((await request(actor, techniqueAction(current, { kind: "reset_combat" }))).status, actor ? 403 : 401);
+  }
+  assert.equal((await request("player", { ...use(current), version: undefined })).status, 400);
+  response = await request("player", use(current));
+  assert.equal(response.status, 200, response.data.error);
+  const stale = current;
+  current = savedSheet(response, sheet.id);
+  assert.equal(current.resources.ep.current, energy - 2);
+  assert.equal(current.abilities[0].tracking.uses.current, 1);
+  assert.equal(current.abilities[0].tracking.cooldown.remaining, 2);
+  assert.equal(response.data.rolls.length, 0);
+  assert.equal((await request("player", use(stale))).status, 409);
+  assert.equal((await request("player", use(current))).status, 400, "cooldown rejects before any balance changes");
+  assert.deepEqual(savedSheet(await request("player"), sheet.id), current);
+  for (const remaining of [1, 0]) {
+    response = await request("gm", techniqueAction(current, { kind: "advance_cooldown" }));
+    assert.equal(response.status, 200);
+    current = savedSheet(response, sheet.id);
+    assert.equal(current.abilities[0].tracking.cooldown.remaining, remaining);
+    assert.equal(current.resources.ep.current, energy - 2);
+  }
+  response = await request("player", use(current));
+  current = savedSheet(response, sheet.id);
+  assert.equal(current.abilities[0].tracking.uses.current, 0);
+  const exhausted = structuredClone(current);
+  assert.equal((await request("player", use(current))).status, 400);
+  assert.deepEqual(savedSheet(await request("player"), sheet.id), exhausted);
+  assert.equal((await request("player", techniqueAction(current, { kind: "adjust_counter", abilityId: "technique", counterId: "luck", delta: -3 }))).status, 400);
+  response = await request("player", techniqueAction(current, { kind: "adjust_counter", abilityId: "technique", counterId: "luck", delta: -1 }));
+  current = savedSheet(response, sheet.id);
+  assert.equal(current.abilities[0].tracking.counters[0].current, 1);
+  response = await request("gm", techniqueAction(current, { kind: "reset_combat" }));
+  assert.equal(response.status, 200);
+  current = savedSheet(response, sheet.id);
+  assert.equal(current.abilities[0].tracking.uses.current, 2);
+  assert.equal(current.abilities[0].tracking.cooldown.remaining, 0);
+  assert.equal(current.abilities[0].tracking.counters[0].current, 1);
+  assert.equal(current.resources.ep.current, energy - 4);
+  const legacy = structuredClone(current);
+  delete legacy.abilities[0].tracking;
+  response = await edit("player", legacy);
+  current = savedSheet(response, sheet.id);
+  assert.equal(current.abilities[0].tracking.uses.current, 2, "older ability edits keep tracking by stable ID");
+  response = await edit("player", { ...current, abilities: [{ ...current.abilities[0], tracking: null }] });
+  assert.equal(savedSheet(response, sheet.id).abilities[0].tracking, null);
+}));
+
+test("technique rolls commit energy, uses and history together and reject a concurrent version without recording", async () => gameFixture(async ({ sheet, campaignId, sqlite }) => {
+  let response = await edit("player", { ...sheet, abilities: [technique("1d6")] });
+  let current = savedSheet(response, sheet.id);
+  const energy = current.resources.ep.current;
+  const roll = (s) => ({ action: "roll", campaignId, sheetId: s.id, version: s.version, request: { kind: "ability", id: "technique" }, visibility: "table" });
+  assert.equal((await request("player", { ...roll(current), version: undefined })).status, 400);
+  assert.equal((await request("player", { action: "use_ability", sheetId: sheet.id, version: current.version, abilityId: "technique" })).status, 400, "a formula technique cannot bypass its roll");
+  response = await request("player", roll(current));
+  assert.equal(response.status, 200, response.data.error);
+  const stale = current;
+  current = savedSheet(response, sheet.id);
+  assert.equal(current.resources.ep.current, energy - 2);
+  assert.equal(current.abilities[0].tracking.uses.current, 1);
+  assert.equal(current.abilities[0].tracking.cooldown.remaining, 2);
+  assert.equal(response.data.rolls.length, 1);
+  assert.equal((await request("player", roll(stale))).status, 409);
+  assert.equal((await request("player", roll(current))).status, 400);
+  response = await request("player", techniqueAction(current, { kind: "reset_combat" }));
+  current = savedSheet(response, sheet.id);
+  const beforeRace = structuredClone(current);
+  const originalBatch = env.DB.batch.bind(env.DB);
+  env.DB.batch = async (statements) => {
+    sqlite.prepare("UPDATE sheets SET version=version+1 WHERE id=?").run(sheet.id);
+    env.DB.batch = originalBatch;
+    return originalBatch(statements);
+  };
+  response = await request("player", roll(current));
+  assert.equal(response.status, 409, response.data.error);
+  response = await request("player");
+  current = savedSheet(response, sheet.id);
+  assert.equal(current.resources.ep.current, beforeRace.resources.ep.current);
+  assert.deepEqual(current.abilities, beforeRace.abilities);
+  assert.equal(response.data.rolls.length, 1, "no roll was inserted when its debit lost the optimistic race");
+  assert.equal(current.version, beforeRace.version + 1, "only the simulated concurrent operation changed the version");
+}));

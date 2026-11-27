@@ -224,3 +224,15 @@ Os dados ficam no JSON existente da ficha e usam o salvamento condicional e as p
 
 Validação: 18 testes focados aprovados, incluindo a API real sobre SQLite, autorização, limites e conflitos; TypeScript, os dois builds e bundle Supabase aprovados. Lint dos módulos novos limpo. A T12 depende do inventário da T11 e seu PR deve ser integrado depois do PR #14.
 
+# T13 — Técnicas personalizadas — 27/11/2026
+
+Técnicas podem configurar usos por combate, recarga em rodadas e até oito contadores nomeados. Usar uma técnica valida e debita energia, uso e recarga em uma operação; quando há fórmula, o histórico de rolagem é salvo na mesma transação condicionada à versão. Técnicas sem controles mantêm o comportamento ilimitado anterior. Campos omitidos por editores antigos são preservados; `tracking: null` remove a configuração.
+
+Conforme decisão do usuário, novo combate e avanço de recarga são manuais pela ficha. Novo combate restaura usos e libera recargas, sem repor energia ou contadores próprios. Contadores próprios são ajustados explicitamente. Os encontros não alteram esses valores.
+
+Validação final: 101 testes aprovados, incluindo 17 testes puros de técnicas e API com técnica sem fórmula, fórmula, limites, permissões, omissão de campos e conflito simulado entre leitura e gravação. A rolagem rejeitada por concorrência não gerou histórico nem débito parcial. TypeScript, builds Next.js/Vercel e Vinext/Sites e bundle Supabase passaram. Lint dos módulos novos limpo; lint global mantém os 7 erros e 7 avisos anteriores.
+
+Navegador local com NexoApp real em demonstração: T11 em 1440 e 375 px; T12 e T13 em 1440, 375 e 320 px. Confirmados configuração, salvar/recarregar, limites e avisos, restauração de rascunhos, clique/toque externo ignorado, cabeçalho/rodapé das modais, foco, impressão e ausência de overflow/erros de execução. O suporte foi publicado como `nexo-game` versão 8 e o código publicado foi lido e comparado integralmente com o bundle local. Não foi efetuado login com contas reais para o aceite final do serviço hospedado.
+
+Todos os PRs deste bloco contêm roteiro manual com pré-requisitos, passos e resultados esperados; a regra foi registrada no `AGENTS.md` para as próximas tarefas.
+

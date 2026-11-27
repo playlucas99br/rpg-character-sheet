@@ -84,3 +84,17 @@ test("inventory drafts recover for old sheets and detect independent and conflic
   assert.deepEqual(reconcileDraft(parsed, conflicting).conflicts, ["inventoryItems"]);
   assert.equal(parseDraft(JSON.stringify({ ...draft, value: { ...value, inventoryItems: [{ ...item, quantity: -1 }] } }), base), null);
 });
+
+test("technique configuration drafts merge independent notes and protect newer spent uses", () => {
+  const base = newSheet("jujutsu", "campaign", "player", "Jogador");
+  base.abilities = [{ id: "power", name: "Técnica", cost: 1, formula: "", description: "" }];
+  const value = structuredClone(base);
+  value.abilities[0].tracking = { uses: { current: 2, max: 2 } };
+  const draft = { base, value, savedAt: new Date().toISOString() };
+  const current = { ...structuredClone(base), version: 2, notes: "Pista" };
+  const recovered = reconcileDraft(parseDraft(JSON.stringify(draft), current), current);
+  assert.deepEqual(recovered.conflicts, []);
+  assert.deepEqual(recovered.value.abilities, value.abilities);
+  current.abilities = [{ ...value.abilities[0], tracking: { uses: { current: 1, max: 2 } } }];
+  assert.deepEqual(reconcileDraft(draft, current).conflicts, ["abilities"]);
+});

@@ -211,4 +211,23 @@ Somente o mestre recebe e altera encontros pela API. Atualizações exigem a ver
 
 As condições de T10 são opcionais em cada participante: `conditions: [{ id, name, remainingRounds }]`, com `remainingRounds: null` para duração indefinida. Encontros anteriores sem esse campo continuam válidos. O avanço de rodada e a expiração usam o mesmo JSON e `UPDATE` com versão; nenhuma ficha é alterada automaticamente. Só o mestre administra condições e encontros encerrados são somente leitura.
 
-A migração de encontros foi aplicada em produção na versão `20261127225523`, alinhada ao arquivo local. O schema 3 e o backend `nexo-game` versão 7 estão ativos. O smoke administrativo em `supabase/tests/encounters-smoke.sql` confere persistência, privacidade, versões e Broadcast e desfaz todos os registros temporários.
+A migração de encontros foi aplicada em produção na versão `20261127225523`, alinhada ao arquivo local. O schema 3 está ativo; o backend `nexo-game` foi atualizado para a versão 8 com T11–T13. O smoke administrativo em `supabase/tests/encounters-smoke.sql` confere persistência, privacidade, versões e Broadcast e desfaz todos os registros temporários.
+
+## Inventário e técnicas — T11 a T13
+
+As extensões abaixo são opcionais dentro de `sheets.data`, sem nova tabela, migração ou acesso direto do navegador ao banco:
+
+| Campo | Conteúdo |
+| --- | --- |
+| `inventory` | Anotações livres anteriores, preservadas como texto |
+| `inventoryItems[]` | Até 100 itens com `id`, `name`, `quantity`, `weight` unitário em kg, `equipped` e `description` opcional |
+| `inventoryItems[].counter` | Tipo `ammunition`, `charges` ou `consumable`, `current`, `max` e `label` opcional |
+| `abilities[].tracking.uses` | `current` e `max` de usos por combate |
+| `abilities[].tracking.cooldown` | `rounds` de recarga configurada e `remaining` |
+| `abilities[].tracking.counters[]` | Até 8 contadores próprios com `id`, `name`, `current` e `max` |
+
+O peso é informativo. Contadores de itens não multiplicam a quantidade física e ataques não os consomem automaticamente. `adjust_inventory_counter` exige versão da ficha, item, operação e quantidade; rejeita saldo insuficiente ou excesso em vez de limitar silenciosamente o valor.
+
+Técnicas sem `tracking` continuam ilimitadas. `use_ability` usa técnicas sem fórmula; `roll` com tipo `ability` registra o resultado junto ao débito de energia, uso e recarga numa transação condicionada à versão. Técnicas com controles exigem versão também na rolagem; técnicas antigas sem controles continuam aceitando o contrato anterior. `technique_control` recebe `reset_combat`, `advance_cooldown` ou `adjust_counter`. Os controles são manuais, conforme decisão do usuário; encontros não os alteram. Novo combate restaura usos e zera recarga, preservando energia e contadores próprios.
+
+Todas as ações reutilizam autorização de dono/mestre e o salvamento condicional da ficha. Ao editar, extensões omitidas por clientes antigos são preservadas por IDs estáveis; `counter: null` e `tracking: null` removem a configuração explicitamente, e `inventoryItems: []` remove os itens. Importação JSON, cópia, impressão e rascunhos suportam os campos novos. O JSON de exportação permanece na versão 1 por ser uma expansão opcional e compatível.

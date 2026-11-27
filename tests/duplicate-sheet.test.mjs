@@ -13,6 +13,7 @@ test("copies preserve every system's saved content with independent identity and
     source.notes = "Pista original";
     source.inventory = "Equipamento";
     source.inventoryItems = [{ id: "pack", name: "Mochila", quantity: 1, weight: 0.75, equipped: true, counter: { kind: "charges", current: 2, max: 5 } }];
+    source.abilities = [{ id: "power", name: "Técnica", cost: 1, formula: "", description: "", tracking: { uses: { current: 1, max: 2 }, counters: [{ id: "luck", name: "Sorte", current: 2, max: 3 }] } }];
     const before = structuredClone(source);
     const copy = makeSheetCopy(source, "Nova ficha", "2026-10-29T12:00:00Z");
     assert.notEqual(copy.id, source.id);
@@ -30,6 +31,8 @@ test("copies preserve every system's saved content with independent identity and
     assert.deepEqual(copy.inventoryItems, source.inventoryItems);
     copy.inventoryItems[0].quantity = 2;
     copy.inventoryItems[0].counter.current = 0;
+    assert.deepEqual(copy.abilities, source.abilities);
+    copy.abilities[0].tracking.counters[0].current = 0;
     assert.deepEqual(source, before);
   }
   const monster = newSheet("ordem", "campaign", "gm", "Mestre", "monster");

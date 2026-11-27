@@ -19,6 +19,7 @@ import { GameError } from "./errors";
 import { resourceSpendWarning } from "./quick-actions";
 import { adjustInventoryCounter, adjustInventoryCounterSchema } from "./inventory-counters";
 import { preserveSheetExtensions } from "./sheet-content";
+import { adjustTechniqueCounter, advanceTechniqueCooldowns, hasTechniqueTracking, resetCombatTechniques, techniqueControlSchema, useAbility as consumeAbility } from "./techniques";
 import { ENCOUNTER_ACTIONS, isEncounterAction } from "./encounters";
 import { encountersFor, mutateEncounter } from "./encounter-server";
 import { database, preparePersistence } from "./persistence";
@@ -218,6 +219,8 @@ export async function mutate(user: User, input: Record<string, unknown>) {
       "duplicate_sheet",
       "update_sheet",
       "adjust_inventory_counter",
+      "use_ability",
+      "technique_control",
       "resource",
       "delete_sheet",
       "roll",
@@ -411,6 +414,26 @@ export async function mutate(user: User, input: Record<string, unknown>) {
       .run();
     return { id: sheet.id };
   }
+  if (action === "use_ability" || action === "technique_control") {
+    const sheet = await ownedSheet(user.id, idSchema.parse(input.sheetId));
+    const expected = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER).parse(input.version);
+    if (sheet.version !== expected) throw new GameError("A ficha mudou. Sincronize antes de ajustar ou usar a técnica.", 409);
+    let next: Sheet;
+    if (action === "use_ability") {
+      const abilityId = idSchema.parse(input.abilityId);
+      const ability = sheet.abilities.find((entry) => entry.id === abilityId);
+      if (!ability) throw new GameError("Técnica não encontrada.", 404);
+      if (ability.formula) throw new GameError("Use a rolagem desta técnica para registrar o resultado junto ao gasto.");
+      next = consumeAbility(sheet, abilityId);
+    } else {
+      const control = techniqueControlSchema.parse(input.control);
+      next = control.kind === "reset_combat" ? resetCombatTechniques(sheet)
+        : control.kind === "advance_cooldown" ? advanceTechniqueCooldowns(sheet)
+          : adjustTechniqueCounter(sheet, control.abilityId, control.counterId, control.delta);
+    }
+    await saveSheet(next, expected);
+    return { id: sheet.id };
+  }
   if (action === "adjust_inventory_counter") {
     const value = adjustInventoryCounterSchema.parse(input);
     const sheet = await ownedSheet(user.id, value.sheetId);
@@ -516,9 +539,11 @@ export async function mutate(user: User, input: Record<string, unknown>) {
     );
   if (sheet && request.kind === "ability") {
     const ability = sheet.abilities.find((a) => a.id === request.id)!;
-    if (sheet.resources.ep.current < ability.cost)
-      throw new GameError("Energia insuficiente para usar esta habilidade.");
-    sheet.resources.ep.current -= ability.cost;
+    if (hasTechniqueTracking(ability) || input.version !== undefined) {
+      const expected = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER).parse(input.version);
+      if (sheet.version !== expected) throw new GameError("A ficha mudou. Confira os usos antes de tentar a técnica novamente.", 409);
+    }
+    const nextSheet = consumeAbility(sheet, ability.id);
     // Conditional insert + update in a transactional D1 batch: charge once and record only when the version still matches.
     const conditionalRoll = db
       .prepare(
@@ -541,7 +566,7 @@ export async function mutate(user: User, input: Record<string, unknown>) {
         .prepare(
           "UPDATE sheets SET data=?,version=version+1,updated_at=? WHERE id=? AND version=?",
         )
-        .bind(JSON.stringify(sheet), now, sheet.id, sheet.version),
+        .bind(JSON.stringify(nextSheet), now, sheet.id, sheet.version),
     ]);
     if (!results[1].meta.changes)
       throw new GameError(

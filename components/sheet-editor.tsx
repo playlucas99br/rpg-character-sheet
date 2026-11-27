@@ -9,6 +9,7 @@ import { Button, Field, Modal, TabList } from "./ui";
 import { draftKey, hasDraftChanges, parseDraft, reconcileDraft, type SheetDraft } from "../lib/game/drafts";
 import { InventoryEditor } from "./inventory-editor";
 import { InventoryCounterEditor } from "./inventory-counter-controls";
+import { TechniqueEditor } from "./technique-editor";
 
 const fieldNames: Record<string, string> = { name: "nome", className: "classe", origin: "origem", level: "nível", exposure: "NEX", defense: "defesa", attributes: "atributos", resources: "vida, energia ou sanidade", skills: "perícias", attacks: "ataques", rituals: "rituais", abilities: "habilidades", inventory: "equipamento", inventoryItems: "itens do inventário", notes: "notas", description: "descrição", tone: "cor" };
 
@@ -662,6 +663,7 @@ export default function SheetEditor({
                       }
                     />
                   </Field>
+                  <TechniqueEditor ability={a} onChange={(ability) => set("abilities", draft.abilities.map((item, index) => index === i ? ability : item))} />
                 </div>
               ))}
               <Button

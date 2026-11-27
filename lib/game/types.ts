@@ -1,4 +1,5 @@
 import type { InventoryCounter } from "./inventory-counters";
+import type { AbilityTracking } from "./techniques";
 
 export type SystemId =
   | "ordem"
@@ -39,6 +40,7 @@ export type Ability = {
   cost: number;
   formula: string;
   description: string;
+  tracking?: AbilityTracking | null;
 };
 export type KnownRitual = {
   id: string;
