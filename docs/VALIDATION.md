@@ -156,3 +156,13 @@ O painel do mestre permite informar uma quantidade inteira de 1 a 9999 e aplicar
 ## Aceite com contas reais
 
 Na prévia do PR, abrir o painel como mestre, aplicar dano a um personagem e conferir a ficha na sessão do jogador. Repetir com cura e gasto de energia, recarregar as duas sessões e verificar os limites. Como jogador, confirmar que o painel permanece reservado ao mestre. A validação local cobre a rota real e os componentes da demonstração; o fluxo positivo com contas reais e a entrega de eventos no serviço hospedado continuam pendentes.
+
+# T09 — Iniciativa e turnos — 27/11/2026
+
+Branch `feat/t09-encounters`, sobre a T08. O painel do mestre permite salvar encontros com participantes da campanha, informar iniciativa, desempatar pela ordem manual da preparação e iniciar, avançar e encerrar o combate. A primeira rodada é 1; voltar do último participante ao primeiro incrementa a rodada. Encontros encerrados ficam disponíveis para consulta. Cada encontro guarda o nome do participante para preservar o registro quando a ficha é excluída.
+
+A persistência usa a nova tabela privada `encounters`, com JSON e versão, nas migrações SQLite e Supabase. O mestre autoriza pela campanha armazenada no encontro; o servidor resolve os nomes das fichas, verifica a campanha de cada participante e recusa versões antigas com `409`. Jogadores recebem lista vazia. A migração Supabase eleva o schema para 3, registra cinco consultas literais novas, mantém RLS e bloqueio de acesso direto do navegador e envia apenas a invalidação de campanha pelo Realtime. Importações de origens D1 novas preservam também encontros; origens antigas sem a tabela continuam compatíveis.
+
+Verificações específicas: seis testes de lógica/API SQLite aprovados, cobrindo iniciativa, desempate, estados, rodadas, isolamento, campos forjados, nomes canônicos, retomada após reabrir o banco e concorrência. Dois testes PostgreSQL adicionais confirmaram o registro SQL, privacidade, gravação por versão, payload mínimo de Broadcast e importações D1 com e sem encontros. A API existente e o smoke de consolidação permaneceram aprovados.
+
+O modelo local da demonstração usa as mesmas regras de iniciativa e estado, separado das contas reais. O rollout exige aplicar a migração e atualizar a Edge Function antes de usar os novos comandos. O aceite com duas sessões reais no serviço hospedado permanece pendente.

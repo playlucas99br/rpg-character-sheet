@@ -50,6 +50,8 @@ import { makeImportedSheet, validateSheetImport } from "../lib/game/sheet-import
 import { canReadSheet } from "../lib/game/access";
 import { masterPanelFor } from "../lib/game/master-panel";
 import { resourceSpendWarning } from "../lib/game/quick-actions";
+import { isEncounterAction } from "../lib/game/encounters";
+import { mutateDemoEncounter } from "../lib/game/encounter-demo";
 import {
   Button,
   Die,
@@ -77,6 +79,7 @@ import SignIn from "./sign-in";
 import SyncIndicator, { SyncNotice } from "./sync-status";
 import CampaignAssets from "./campaign-assets";
 import CampaignMasterPanel from "./campaign-master-panel";
+import CampaignEncounters from "./campaign-encounters";
 import DashboardResume from "./dashboard-resume";
 import DuplicateSheetForm from "./duplicate-sheet-form";
 import ImportSheetForm from "./import-sheet-form";
@@ -206,6 +209,8 @@ function demoMutation(
       updatedAt: now,
     };
     result = { id: state.sheets[index].id };
+  } else if (isEncounterAction(input.action)) {
+    result = mutateDemoEncounter(state, input);
   } else if (input.action === "resource") {
     const s = state.sheets.find((s) => s.id === input.sheetId);
     if (!s) throw new Error("Ficha não encontrada.");
@@ -1168,6 +1173,7 @@ export default function NexoApp({
                 ))}
               {route.page === "master-panel" &&
                 (masterPanel ? (
+                  <>
                   <CampaignMasterPanel
                     roster={masterPanel}
                     onBack={() => navigate("campaign", masterPanel.campaign.id)}
@@ -1178,6 +1184,15 @@ export default function NexoApp({
                       action: "resource", sheetId, key, delta,
                     }))}
                   />
+                  <CampaignEncounters
+                    key={masterPanel.campaign.id}
+                    campaign={masterPanel.campaign}
+                    sheets={sheets}
+                    encounters={raw.encounters}
+                    busy={busy}
+                    onAction={mutation}
+                  />
+                  </>
                 ) : (
                   <Empty
                     title="Painel indisponível"

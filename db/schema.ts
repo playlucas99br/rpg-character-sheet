@@ -71,3 +71,17 @@ export const rolls = sqliteTable(
   },
   (t) => [index("roll_campaign_time_idx").on(t.campaignId, t.createdAt)],
 );
+
+export const encounters = sqliteTable(
+  "encounters",
+  {
+    id: text("id").primaryKey(),
+    campaignId: text("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+    data: text("data").notNull(),
+    version: integer("version").notNull().default(1),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => [index("encounter_campaign_time_idx").on(t.campaignId, t.updatedAt)],
+);

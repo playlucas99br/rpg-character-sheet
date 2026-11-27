@@ -123,10 +123,27 @@ export type Roll = {
   visibility: "table" | "gm";
   createdAt: string;
 };
+export type EncounterParticipant = {
+  sheetId: string;
+  name: string;
+  initiative: number;
+};
+export type Encounter = {
+  id: string;
+  campaignId: string;
+  name: string;
+  status: "draft" | "active" | "finished";
+  participants: EncounterParticipant[];
+  round: number;
+  currentParticipantId: string | null;
+  version: number;
+  updatedAt: string;
+};
 export type Workspace = {
   campaigns: Campaign[];
   sheets: Sheet[];
   rolls: Roll[];
+  encounters?: Encounter[];
 };
 export type User = { id: string; name: string };
 export type RollRequest =
