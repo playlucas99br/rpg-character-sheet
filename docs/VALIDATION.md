@@ -177,6 +177,18 @@ A suíte completa local passou em 68 testes, além de TypeScript. Quatro testes 
 
 O fluxo positivo com contas reais no serviço hospedado continua como aceite: abrir o mesmo encontro em duas sessões do mestre, aplicar condição e avançar rodada, conferindo a versão atualizada e a recusa de uma ação antiga.
 
+# Ajuste compartilhado — Modais e barras de rolagem — 27/11/2026
+
+Branch `fix/modal-layout-and-scroll`, sobre a T10. As modais mantêm o cabeçalho com X e o rodapé de ações visíveis; apenas o conteúdo rola. No editor, o campo desabilitado fica dentro da área de conteúdo e as ações de salvar, guardar ou descartar rascunho permanecem no mesmo formulário. Cliques e toques no fundo são ignorados para evitar saídas acidentais. Fechar pelo X ou Escape grava o rascunho local antes de sair; se o navegador negar armazenamento, a edição permanece aberta com aviso. Um arrasto iniciado dentro e solto fora não fecha a janela. Barras de rolagem acompanham o tema, com tratamento para alto contraste e impressão preservada.
+
+QA Chromium com os componentes reais da demonstração: editor em 320×568, 375×667, 768×360 e 1440×900; cabeçalho/X e todas as ações do rodapé visíveis antes e depois de rolar, sem rolagem horizontal. Também verificados os formulários de campanha e encontro. Confirmados cliques e toques fora sem fechamento, recuperação do rascunho ao sair por X/Escape, descarte, salvamento por botão e Enter, arrasto e armazenamento negado. Nenhum erro do aplicativo no navegador. Firefox, teclado virtual e contas hospedadas não foram revalidados.
+
+Verificação final do conjunto: 68 testes, TypeScript, builds Next.js/Vercel e Vinext/Sites e bundle Supabase aprovados. A conferência visual do combate cobriu 16 combinações de estado/largura (320, 375, 768 e 1440 px), iniciativa, desempate, duração/expiração, remoção manual, recarga, seleção de encontros, encerramento e acesso de jogador. O lint dos módulos novos passou; o lint completo permanece com sete erros e sete avisos anteriores. O ajuste da modal removeu o erro antigo de atualização de ref durante render.
+
+## Situação do backend em produção
+
+O backend foi atualizado para `nexo-game` versão 7, `ACTIVE`, após a autorização do proprietário. A migração de encontros foi aplicada e o schema 3 está pronto. O bloqueio anterior de autorização foi resolvido; a verificação da publicação está registrada na seção seguinte. A interface completa depende dos PRs #12 e #13 em `main`.
+
 # Ativação de T09/T10 em produção — 27/11/2026
 
 Após autorização do proprietário, a migração `campaign_encounters` foi aplicada em `20261127225523`. O arquivo local foi alinhado à versão registrada pelo serviço. Conferidos schema 3, tabela `nexo.encounters`, RLS e as cinco consultas do registro fechado.
@@ -188,3 +200,11 @@ Perfis/campanhas/participações/fichas/rolagens/assets permaneceram em 4/6/9/9/
 A suíte local passou em 69 testes, incluindo o novo smoke reproduzido em PGlite. O teste HTTP direto desta execução encontrou timeout de rede; a verificação de API com JWT de conta real continua como aceite do proprietário. O código publicado e a persistência do serviço foram conferidos independentemente.
 
 No GitHub, os PRs #10 e #11 estavam mesclados, enquanto #12 e #13 ainda estavam abertos. Os PRs restantes foram redirecionados para `main`, porque #11 havia sido mesclado na antiga branch da T08 e seus encontros ainda não estavam na principal. Para o frontend completo em produção, integrar #12 e depois #13. A prévia que já contém a tela de encontros pode usar o backend atualizado.
+
+# Proteção contra fechamento acidental das modais — 27/11/2026
+
+O componente compartilhado deixa de fechar ao clicar ou tocar no fundo. X, Escape e ações explícitas do rodapé continuam disponíveis. A mudança protege também formulários de campanha, encontros, importação e demais telas que reutilizam a modal; não exige alteração de contrato ou persistência.
+
+O teste de navegador primeiro reproduziu a falha: o diálogo desaparecia após clicar no fundo, quando deveria permanecer aberto com o texto não salvo. Após remover os handlers de fechamento por backdrop, a mesma verificação passou. QA Chromium em 320×568, 375×667, 768×360 e 1440×900 confirmou cliques/toques fora ignorados e texto preservado, X/Escape, recuperação e descarte de rascunho, salvar por botão/Enter, armazenamento negado e header/footer visíveis ao rolar. Campanha e encontro também preservaram seus campos/participantes após clicar fora. Nenhum erro de aplicativo foi capturado.
+
+TypeScript, três testes de sincronização/rascunho e builds Next.js/Vercel e Vinext/Sites aprovados. Lint do componente compartilhado sem erros, com apenas o aviso de imagem já existente.

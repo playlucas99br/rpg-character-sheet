@@ -175,6 +175,12 @@ Rollback deste PR: volte frontend e `nexo-game` à versão anterior. A migraçã
 
 Ao adicionar um sistema, mantenha o sistema de campanhas existentes estável. Campos comuns ficam relacionais; regras variáveis podem ficar no JSON validado. Extraia uma tabela específica quando houver necessidade real de pesquisa, integridade ou relacionamentos, com migração e compatibilidade de leitura dos registros antigos.
 
+## Publicação do bloco T08–T10 e modais
+
+O frontend de encontros e condições usa o schema 3 e o backend `nexo-game` versão 7, ambos ativos. Os PRs restantes #12 e #13 apontam para `main`; integrar #12 e depois #13 para publicar também a interface completa.
+
+A migração `supabase/migrations/20261127225523_campaign_encounters.sql` corresponde à versão registrada no serviço. Preservar a autenticação própria da função e manter as tabelas privadas ao navegador. O aceite com duas sessões reais continua no roteiro de validação.
+
 ## Publicação de encontros e condições — 27/11/2026
 
 Migração `20261127225523_campaign_encounters.sql` aplicada, schema 3 pronto e `nexo-game` versão 7 ativa. O bundle publicado corresponde ao código conferido e inclui `create_encounter` e as ações de condições. O arquivo local usa a versão devolvida pelo histórico remoto para evitar reaplicar a mesma migração com outro timestamp.
