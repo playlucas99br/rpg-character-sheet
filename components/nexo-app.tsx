@@ -1169,6 +1169,10 @@ export default function NexoApp({
                     roster={masterPanel}
                     onBack={() => navigate("campaign", masterPanel.campaign.id)}
                     onSheet={(id) => navigate("sheet", id)}
+                    busy={busy}
+                    onResource={async (sheetId, key, delta) => Boolean(await mutation({
+                      action: "resource", sheetId, key, delta,
+                    }))}
                   />
                 ) : (
                   <Empty
