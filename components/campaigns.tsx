@@ -14,6 +14,7 @@ import {
   Settings2,
   UserPlus,
   Skull,
+  LayoutDashboard,
 } from "lucide-react";
 import type { Campaign, Sheet, SystemId } from "../lib/game/types";
 import { SYSTEMS, systemById } from "../lib/game/systems";
@@ -486,6 +487,7 @@ export function CampaignDetail({
   onSheet,
   onCreate,
   onImport,
+  onMasterPanel,
   onEdit,
   onMembers,
 }: {
@@ -495,6 +497,7 @@ export function CampaignDetail({
   onSheet: (id: string) => void;
   onCreate: (type: Sheet["type"]) => void;
   onImport: () => void;
+  onMasterPanel: () => void;
   onEdit: () => void;
   onMembers: () => void;
 }) {
@@ -531,6 +534,12 @@ export function CampaignDetail({
           <span className="muted">{campaign.members.length} participantes</span>
         </div>
         <div>
+          {campaign.role === "gm" && (
+            <Button type="button" variant="secondary" className="master-panel-trigger" onClick={onMasterPanel}>
+              <LayoutDashboard size={17} aria-hidden="true" />
+              Painel do mestre
+            </Button>
+          )}
           <Button variant="secondary" className="import-sheet-trigger" onClick={onImport}><FileUp size={17} />Importar JSON</Button>
           <Button variant="secondary" onClick={onMembers}>
             <Users size={16} />
