@@ -201,6 +201,7 @@ function demoMutation(
   } else if (input.action === "update_sheet") {
     const index = state.sheets.findIndex((s) => s.id === input.sheetId);
     if (index < 0) throw new Error("Ficha não encontrada.");
+    if (input.version !== state.sheets[index].version) throw new Error("A ficha mudou enquanto você editava. Sincronize e tente novamente.");
     const content = sheetSchema.parse(input.sheet);
     state.sheets[index] = {
       ...state.sheets[index],

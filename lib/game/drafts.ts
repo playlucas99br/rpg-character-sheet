@@ -1,4 +1,5 @@
 import type { Sheet } from "./types";
+import { inventoryItemsSchema } from "./inventory.ts";
 
 // Drafts are scoped to the person editing, including when a GM edits a player's
 // character. Only the explicit demo stores examples outside the authenticated DB.
@@ -12,6 +13,10 @@ export function parseDraft(raw: string | null, sheet: Sheet): SheetDraft | null 
     if (!draft || draft.base.id !== sheet.id || draft.value.id !== sheet.id || draft.base.ownerId !== sheet.ownerId || draft.base.campaignId !== sheet.campaignId || draft.base.system !== sheet.system || !Number.isInteger(draft.base.version) || typeof draft.savedAt !== "string") return null;
     for (const candidate of [draft.base, draft.value]) {
       for (const key of editableFields) {
+        if (key === "inventoryItems") {
+          if (candidate.inventoryItems !== undefined && !inventoryItemsSchema.safeParse(candidate.inventoryItems).success) return null;
+          continue;
+        }
         if (typeof candidate[key] !== typeof sheet[key]) return null;
         if (Array.isArray(sheet[key]) && (!Array.isArray(candidate[key]) || (candidate[key] as unknown[]).some((item) => !item || typeof item !== "object" || typeof (item as { id?: unknown }).id !== "string"))) return null;
       }
@@ -25,7 +30,7 @@ export function parseDraft(raw: string | null, sheet: Sheet): SheetDraft | null 
     return null;
   }
 }
-const editableFields = ["name", "className", "origin", "level", "exposure", "defense", "attributes", "resources", "skills", "attacks", "rituals", "abilities", "inventory", "notes", "description", "tone"] as const;
+const editableFields = ["name", "className", "origin", "level", "exposure", "defense", "attributes", "resources", "skills", "attacks", "rituals", "abilities", "inventory", "inventoryItems", "notes", "description", "tone"] as const;
 export function hasDraftChanges(base: Sheet, value: Sheet) {
   return editableFields.some((key) => JSON.stringify(base[key]) !== JSON.stringify(value[key]));
 }
