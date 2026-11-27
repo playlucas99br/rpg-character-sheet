@@ -5,6 +5,7 @@ import "./quick-actions.css";
 import "./encounters.css";
 import "./conditions.css";
 import "./inventory.css";
+import "./inventory-counters.css";
 import "./modal-layout.css";
 
 export const metadata: Metadata = {

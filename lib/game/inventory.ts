@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { InventoryItem } from "./types";
+import { inventoryCounterSchema } from "./inventory-counters.ts";
 
 export const MAX_INVENTORY_ITEMS = 100;
 export const MAX_ITEM_QUANTITY = 9999;
@@ -12,6 +13,7 @@ export const inventoryItemSchema = z.object({
   weight: z.number().finite().min(0).max(MAX_ITEM_WEIGHT).multipleOf(0.001),
   equipped: z.boolean(),
   description: z.string().max(2000).optional(),
+  counter: inventoryCounterSchema.nullable().optional(),
 });
 
 export const inventoryItemsSchema = z

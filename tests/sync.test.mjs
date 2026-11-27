@@ -69,7 +69,7 @@ test("client confirms saves only on a valid API response and never retries a wri
 
 test("inventory drafts recover for old sheets and detect independent and conflicting changes", () => {
   const base = newSheet("jujutsu", "campaign", "player", "Jogador");
-  const item = { id: "sword", name: "Espada", quantity: 1, weight: 2, equipped: true };
+  const item = { id: "sword", name: "Espada", quantity: 1, weight: 2, equipped: true, counter: { kind: "charges", current: 1, max: 2 } };
   const value = { ...structuredClone(base), inventoryItems: [item] };
   const draft = { base, value, savedAt: new Date().toISOString() };
   assert.ok(hasDraftChanges(base, value));

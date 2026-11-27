@@ -110,3 +110,35 @@ test("structured inventory persists with legacy notes, authorization and optimis
   assert.deepEqual(savedSheet(cleared, sheet.id).inventoryItems, []);
   assert.equal(savedSheet(cleared, sheet.id).inventory, changed.inventory);
 }));
+
+test("inventory counters persist exact changes, reject limits and stale writes, and preserve omitted counters", async () => gameFixture(async ({ sheet }) => {
+  const counter = { kind: "ammunition", label: "Balas", current: 6, max: 10 };
+  let response = await edit("player", { ...sheet, inventory: "Texto antigo", inventoryItems: [{ id: "gun", name: "Pistola", quantity: 2, weight: 1.2, equipped: true, counter }] });
+  assert.equal(response.status, 200);
+  let current = savedSheet(response, sheet.id);
+  const adjustment = (s, amount, operation = "consume") => ({ action: "adjust_inventory_counter", sheetId: s.id, itemId: "gun", version: s.version, amount, operation });
+  for (const actor of [null, "other-player", "outsider"]) assert.equal((await request(actor, adjustment(current, 1))).status, actor ? 403 : 401);
+  const badInputs = [adjustment(current, 7), adjustment(current, 5, "replenish"), adjustment(current, -1), adjustment(current, 1.5), { ...adjustment(current, 1), itemId: "missing" }, { ...adjustment(current, 1), version: undefined }];
+  for (const input of badInputs) assert.ok([400, 404].includes((await request("player", input)).status));
+  assert.deepEqual(savedSheet(await request("player"), sheet.id), current, "rejected requests leave data and version intact");
+  response = await request("player", adjustment(current, 6));
+  assert.equal(response.status, 200);
+  assert.equal(savedSheet(response, sheet.id).inventoryItems[0].counter.current, 0);
+  assert.equal((await request("gm", adjustment(current, 1))).status, 409);
+  current = savedSheet(response, sheet.id);
+  response = await request("gm", adjustment(current, 10, "replenish"));
+  assert.equal(response.status, 200);
+  current = savedSheet(response, sheet.id);
+  assert.equal(current.inventoryItems[0].counter.current, 10);
+  assert.equal(current.inventoryItems[0].quantity, 2);
+  const legacy = structuredClone(current);
+  delete legacy.inventoryItems[0].counter;
+  response = await edit("player", legacy);
+  current = savedSheet(response, sheet.id);
+  assert.equal(current.inventoryItems[0].counter.current, 10, "editing physical items from an older client keeps tracking by stable item ID");
+  response = await edit("player", { ...current, inventoryItems: [{ ...current.inventoryItems[0], counter: null }] });
+  current = savedSheet(response, sheet.id);
+  assert.equal(current.inventoryItems[0].counter, null);
+  assert.equal((await request("player", adjustment(current, 1))).status, 400);
+  assert.equal(current.inventory, "Texto antigo");
+}));

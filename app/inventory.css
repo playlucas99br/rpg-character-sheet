@@ -132,6 +132,10 @@
   margin-top: 16px;
 }
 
+.inventory-list + h4 {
+  margin-top: 24px;
+}
+
 @media (max-width: 480px) {
   .inventory-editor .inventory-item-numbers {
     grid-template-columns: minmax(0, 1fr);

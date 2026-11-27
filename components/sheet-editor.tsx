@@ -8,6 +8,7 @@ import { sheetSchema } from "../lib/game/validation";
 import { Button, Field, Modal, TabList } from "./ui";
 import { draftKey, hasDraftChanges, parseDraft, reconcileDraft, type SheetDraft } from "../lib/game/drafts";
 import { InventoryEditor } from "./inventory-editor";
+import { InventoryCounterEditor } from "./inventory-counter-controls";
 
 const fieldNames: Record<string, string> = { name: "nome", className: "classe", origin: "origem", level: "nível", exposure: "NEX", defense: "defesa", attributes: "atributos", resources: "vida, energia ou sanidade", skills: "perícias", attacks: "ataques", rituals: "rituais", abilities: "habilidades", inventory: "equipamento", inventoryItems: "itens do inventário", notes: "notas", description: "descrição", tone: "cor" };
 
@@ -687,7 +688,7 @@ export default function SheetEditor({
           )}
           {tab === "notes" && (
             <>
-              <InventoryEditor items={draft.inventoryItems ?? []} onChange={(items) => set("inventoryItems", items)} />
+              <InventoryEditor items={draft.inventoryItems ?? []} onChange={(items) => set("inventoryItems", items)} renderCounterEditor={(item, onChangeItem) => <InventoryCounterEditor item={item} onChangeItem={onChangeItem} />} />
               <Field
                 label="Anotações de equipamento"
                 hint="Seu inventário em texto continua aqui. Os itens acima são organizados separadamente."
