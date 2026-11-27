@@ -17,6 +17,8 @@ import { resolveRoll } from "./dice";
 import { ORDEM_RITUALS, ORDEM_WEAPONS } from "./ordem-library";
 import { GameError } from "./errors";
 import { resourceSpendWarning } from "./quick-actions";
+import { ENCOUNTER_ACTIONS, isEncounterAction } from "./encounters";
+import { encountersFor, mutateEncounter } from "./encounter-server";
 import { database, preparePersistence } from "./persistence";
 export { GameError, database };
 
@@ -139,6 +141,7 @@ export async function workspaceFor(
     campaigns,
     sheets: sheetRows.map(hydrateSheet),
     rolls,
+    encounters: await encountersFor(user),
     user: { id: user.id, name: profile?.name ?? user.name },
   };
 }
@@ -216,8 +219,10 @@ export async function mutate(user: User, input: Record<string, unknown>) {
       "delete_sheet",
       "roll",
       "profile",
+      ...ENCOUNTER_ACTIONS,
     ])
     .parse(input.action);
+  if (isEncounterAction(action)) return mutateEncounter(user, input);
   if (action === "create_campaign") {
     const c = campaignSchema.parse(input.campaign),
       id = crypto.randomUUID();

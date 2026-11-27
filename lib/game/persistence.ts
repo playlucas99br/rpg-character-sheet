@@ -41,6 +41,11 @@ export async function preparePersistence() {
       if (env.DB) {
         const result = await env.DB.batch(tables.map((table) => env.DB!.prepare(`SELECT * FROM ${table}`)));
         snapshot = Object.fromEntries(tables.map((table, i) => [table, result[i].results]));
+        // Older D1 sources predate encounters; newer sources must transfer their combat state too.
+        const hasEncounters = await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='encounters'").first();
+        snapshot.encounters = hasEncounters
+          ? (await env.DB.prepare("SELECT * FROM encounters").all()).results
+          : [];
       } else snapshot = Object.fromEntries(tables.map((table) => [table, []]));
       const imported = await remote.request<{ imported: boolean }>("import", { source: config.source, snapshot });
       if (!imported?.imported) throw new GameError("A transferência dos dados para o Supabase não foi confirmada.", 503);

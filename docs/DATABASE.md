@@ -202,3 +202,9 @@ O RPC aceita apenas strings existentes nessa tabela. Parâmetros escalares são 
 RPCs públicos são `SECURITY INVOKER`, sem execução por `PUBLIC`, `anon` ou `authenticated`. `can_join_campaign` é a única função `SECURITY DEFINER` da aplicação: busca uma participação em schema privado, usa `search_path=''`, consulta apenas a própria identidade e não retorna linhas de jogo. `authenticated` recebe USAGE do schema para essa função, **sem privilégios nas tabelas**, que também mantêm RLS com negação explícita.
 
 Schemas `auth`, `storage` e `realtime` são gerenciados pelo Supabase. Este repositório configura somente seu bucket, sua política restritiva e a política de assinatura do canal. Alterações das tabelas internas desses serviços devem seguir as ferramentas oficiais, não migrações manuais de estrutura.
+
+## Encontros de combate
+
+`nexo.encounters` (SQLite: `encounters`) guarda `id`, `campaign_id`, `data`, `version` e `updated_at`. O JSON contém nome, estado (`draft`, `active`, `finished`), participantes com ficha/nome/iniciativa, rodada e participante atual. A campanha tem chave estrangeira com exclusão em cascata; as fichas dos participantes são referências dentro do JSON para preservar o registro quando uma ficha é removida.
+
+Somente o mestre recebe e altera encontros pela API. Atualizações exigem a versão vista pelo cliente e usam um único `UPDATE` condicionado; nomes e vínculo de campanha dos participantes são resolvidos no servidor. A tabela tem RLS, negação explícita para papéis do navegador e acesso somente pelo backend. O gatilho de Realtime publica apenas a invalidação da campanha. A migração `campaign_encounters` eleva o schema para 3 e acrescenta cinco consultas ao registro fechado. O importador D1 aceita snapshots antigos sem encontros e preserva os novos quando presentes.
