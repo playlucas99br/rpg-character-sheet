@@ -1,6 +1,6 @@
 "use client";
 import { randomId } from "../lib/game/id";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -77,6 +77,8 @@ import { useRecentActivity } from "../lib/game/use-recent-activity";
 import { useCampaignRealtime } from "../lib/game/use-campaign-realtime";
 import { GameApiError, requestGame, type SyncStatus } from "../lib/game/client-sync";
 
+const Tabletop = lazy(() => import("./tabletop/tabletop"));
+
 type Page =
   | "dashboard"
   | "campaigns"
@@ -85,6 +87,7 @@ type Page =
   | "history"
   | "systems"
   | "campaign"
+  | "tabletop"
   | "sheet";
 type Route = { page: Page; id?: string };
 type ModalState = {
@@ -234,6 +237,7 @@ function readRoute(): Route {
       "history",
       "systems",
       "campaign",
+      "tabletop",
       "sheet",
     ].includes(page || "")
       ? page
@@ -523,7 +527,9 @@ export default function NexoApp({
     ? campaigns.find((c) => c.id === currentSheet.campaignId)
     : null;
   const title =
-    route.page === "campaign"
+    route.page === "tabletop"
+      ? "Mesa virtual"
+      : route.page === "campaign"
       ? currentCampaign?.name
       : route.page === "sheet"
         ? currentSheet?.name
@@ -1108,6 +1114,7 @@ export default function NexoApp({
                         campaignId: currentCampaign.id,
                       })
                     }
+                    onTabletop={() => navigate("tabletop", currentCampaign.id)}
                   />
                   {!demo && authProvider === "supabase" && <CampaignAssets key={currentCampaign.id} campaign={currentCampaign} sheets={sheets.filter((s) => s.campaignId === currentCampaign.id)} user={user} onRefresh={refresh} />}
                   </>
@@ -1121,6 +1128,11 @@ export default function NexoApp({
                     </Button>
                   </Empty>
                 ))}
+              {route.page === "tabletop" && (currentCampaign ? (
+                <Suspense fallback={<p role="status">Preparando sua mesa virtual…</p>}>
+                  <Tabletop campaign={currentCampaign} sheets={sheets.filter(s => s.campaignId === currentCampaign.id)} user={user} demo={demo} sheetBusy={busy} onResource={async (sheetId, key, delta) => !!(await mutation({ action: "resource", sheetId, key, delta }))} onBack={() => navigate("campaign", currentCampaign.id)} onSheet={id => navigate("sheet", id)} />
+                </Suspense>
+              ) : <Empty title="Campanha não encontrada" description="Abra a mesa virtual a partir de uma campanha disponível."><Button onClick={() => navigate("campaigns")}>Ver campanhas</Button></Empty>)}
               {(route.page === "sheets" || route.page === "bestiary") && (
                 <>
                   <PageHeading

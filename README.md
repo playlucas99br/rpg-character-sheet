@@ -138,6 +138,8 @@ Os testes não substituem uma sessão de login no Site publicado. A interface de
 
 ## Próximas evoluções
 
+A mesa virtual tem uma primeira versão de **editor local para o mestre**, acessível dentro das campanhas: mapas originais, tokens/variantes, fog, luzes, camadas e efeitos. Ainda não conecta jogadores nem sincroniza pelo servidor. Veja [funcionalidades, limites e plano para a sala compartilhada](docs/VIRTUAL_TABLETOP.md).
+
 - Incorporar as regras próprias da campanha de Jujutsu: aparar, vestígios, técnicas e progressão.
 - Importar fichas JSON e duplicar personagens/criaturas.
 - Condições, iniciativa e gerenciamento de combate.

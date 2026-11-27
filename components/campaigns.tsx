@@ -13,6 +13,7 @@ import {
   Settings2,
   UserPlus,
   Skull,
+  Map,
 } from "lucide-react";
 import type { Campaign, Sheet, SystemId } from "../lib/game/types";
 import { SYSTEMS, systemById } from "../lib/game/systems";
@@ -486,6 +487,7 @@ export function CampaignDetail({
   onCreate,
   onEdit,
   onMembers,
+  onTabletop,
 }: {
   campaign: Campaign;
   sheets: Sheet[];
@@ -494,6 +496,7 @@ export function CampaignDetail({
   onCreate: (type: Sheet["type"]) => void;
   onEdit: () => void;
   onMembers: () => void;
+  onTabletop: () => void;
 }) {
   const characters = sheets.filter((s) => s.type === "character"),
     monsters = sheets.filter((s) => s.type === "monster");
@@ -543,6 +546,11 @@ export function CampaignDetail({
           )}
         </div>
       </div>
+      {campaign.role === "gm" && <section className="campaign-tabletop-entry">
+        <div className="tabletop-entry-icon"><Map size={28} /></div>
+        <div><small>SUA HISTÓRIA GANHA UM NOVO CENÁRIO</small><h2>A mesa está pronta para explorar.</h2><p>Mapas, tokens, iluminação e atmosfera. Prepare suas cenas no editor local da campanha.</p></div>
+        <Button onClick={onTabletop}><Map size={17} /> Abrir mesa virtual</Button>
+      </section>}
       <SectionTitle
         title={
           campaign.role === "gm"
