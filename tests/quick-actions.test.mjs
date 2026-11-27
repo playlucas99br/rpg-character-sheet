@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { quickResourceChange } from "../lib/game/quick-actions.ts";
+import { quickResourceChange, resourceSpendWarning } from "../lib/game/quick-actions.ts";
 
 const sheet = {
   resources: {
@@ -10,10 +10,11 @@ const sheet = {
   },
 };
 
-test("quick actions map damage, healing and energy to the existing resource mutation", () => {
+test("quick actions map damage, healing, energy and sanity to the existing resource mutation", () => {
   assert.deepEqual(quickResourceChange(sheet, "damage", 5), { key: "hp", delta: -5, next: 7 });
   assert.deepEqual(quickResourceChange(sheet, "heal", 5), { key: "hp", delta: 5, next: 17 });
   assert.deepEqual(quickResourceChange(sheet, "spend", 3), { key: "ep", delta: -3, next: 4 });
+  assert.deepEqual(quickResourceChange(sheet, "spend_sanity", 4), { key: "sanity", delta: -4, next: 16 });
   assert.equal(sheet.resources.hp.current, 12, "a preview never changes the saved sheet");
   assert.equal(sheet.resources.ep.current, 7);
   assert.equal(sheet.resources.sanity.current, 20);
@@ -23,15 +24,30 @@ test("quick actions preview the same zero and maximum limits used by sheets", ()
   assert.equal(quickResourceChange(sheet, "damage", 9999).next, 0);
   assert.equal(quickResourceChange(sheet, "heal", 9999).next, 20);
   assert.equal(quickResourceChange(sheet, "spend", 9999).next, 0);
+  assert.equal(quickResourceChange(sheet, "spend_sanity", 9999).next, 0);
   assert.equal(quickResourceChange({ resources: { ...sheet.resources, hp: { current: 0, max: 20 } } }, "damage", 1).next, 0);
 });
 
 test("quick actions reject blank, fractional, nonfinite and out-of-range amounts", () => {
   for (const amount of [0, -1, 0.5, 1.5, 10000, NaN, Infinity, -Infinity]) {
-    for (const action of ["damage", "heal", "spend"]) {
+    for (const action of ["damage", "heal", "spend", "spend_sanity"]) {
       assert.equal(quickResourceChange(sheet, action, amount), null);
     }
   }
   assert.ok(quickResourceChange(sheet, "damage", 1));
   assert.ok(quickResourceChange(sheet, "damage", 9999));
+});
+
+test("insufficient energy and sanity produce warnings before saving while HP damage keeps its lower limit", () => {
+  assert.equal(resourceSpendWarning(sheet, "hp", -9999), null);
+  assert.equal(resourceSpendWarning(sheet, "ep", -7), null);
+  assert.equal(resourceSpendWarning(sheet, "ep", 9999), null);
+  assert.equal(resourceSpendWarning(sheet, "ep", 0), null);
+  assert.equal(resourceSpendWarning(sheet, "ep", -8, "Energia amaldiçoada"), "Saldo insuficiente de Energia amaldiçoada. Disponível: 7; gasto solicitado: 8.");
+  assert.equal(resourceSpendWarning(sheet, "sanity", -20), null);
+  assert.equal(resourceSpendWarning(sheet, "sanity", -21, "Sanidade"), "Saldo insuficiente de Sanidade. Disponível: 20; gasto solicitado: 21.");
+  const empty = { resources: { ...sheet.resources, ep: { current: 0, max: 10 } } };
+  assert.match(resourceSpendWarning(empty, "ep", -1), /Saldo insuficiente/);
+  assert.equal(sheet.resources.ep.current, 7);
+  assert.equal(sheet.resources.sanity.current, 20);
 });

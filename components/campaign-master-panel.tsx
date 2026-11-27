@@ -5,6 +5,7 @@ import type { MasterPanelRoster } from "../lib/game/master-panel";
 import {
   MAX_QUICK_ACTION_AMOUNT,
   quickResourceChange,
+  resourceSpendWarning,
   type QuickAction,
 } from "../lib/game/quick-actions";
 import { systemById } from "../lib/game/systems";
@@ -23,10 +24,12 @@ function QuickActions({
   sheet,
   busy,
   onResource,
+  onWarning,
 }: {
   sheet: Sheet;
   busy: boolean;
   onResource: OnResource;
+  onWarning: (message: string) => void;
 }) {
   const amountId = useId();
   const feedbackId = useId();
@@ -34,16 +37,24 @@ function QuickActions({
   const [amount, setAmount] = useState("5");
   const [feedback, setFeedback] = useState("");
   const [saving, setSaving] = useState(false);
+  const { resourceLabels } = systemById(sheet.system);
   const actions = [
     ["damage", "Dano"],
     ["heal", "Cura"],
-    ["spend", `Gastar ${systemById(sheet.system).resourceLabels.ep}`],
+    ["spend", `Gastar ${resourceLabels.ep}`],
+    ["spend_sanity", `Gastar ${resourceLabels.sanity}`],
   ] as const;
   const validAmount = quickResourceChange(sheet, "damage", Number(amount)) !== null;
 
   async function apply(action: QuickAction) {
     const change = quickResourceChange(sheet, action, Number(amount));
     if (busy || pending.current || !change) return;
+    const warning = resourceSpendWarning(sheet, change.key, change.delta, resourceLabels[change.key]);
+    if (warning) {
+      setFeedback(warning);
+      onWarning(warning);
+      return;
+    }
     pending.current = true;
     setSaving(true);
     setFeedback("");
@@ -91,7 +102,7 @@ function QuickActions({
             type="button"
             variant={action === "damage" ? "danger" : "secondary"}
             aria-label={`${label} em ${sheet.name}`}
-            disabled={busy || saving || !change || change.next === sheet.resources[change.key].current}
+            disabled={busy || saving || !change || (change.key === "hp" && change.next === sheet.resources.hp.current)}
             onClick={() => void apply(action)}
           >
             {label}
@@ -103,7 +114,7 @@ function QuickActions({
           ? `Informe um número inteiro entre 1 e ${MAX_QUICK_ACTION_AMOUNT}.`
           : saving
             ? "Salvando ajuste…"
-            : feedback || "Os ajustes respeitam zero e o valor máximo de cada recurso."}
+            : feedback || "Dano e cura respeitam os limites de vida. Gastos exigem saldo disponível."}
       </p>
     </div>
   );
@@ -116,6 +127,7 @@ function SheetRoster({
   onSheet,
   busy,
   onResource,
+  onWarning,
 }: {
   title: string;
   empty: string;
@@ -123,6 +135,7 @@ function SheetRoster({
   onSheet: (id: string) => void;
   busy: boolean;
   onResource: OnResource;
+  onWarning: (message: string) => void;
 }) {
   return (
     <section className="master-roster-section">
@@ -162,7 +175,7 @@ function SheetRoster({
                     <dd>{sheet.defense}</dd>
                   </div>
                 </dl>
-                <QuickActions sheet={sheet} busy={busy} onResource={onResource} />
+                <QuickActions sheet={sheet} busy={busy} onResource={onResource} onWarning={onWarning} />
               </li>
             );
           })}
@@ -180,12 +193,14 @@ export default function CampaignMasterPanel({
   onSheet,
   busy = false,
   onResource,
+  onWarning,
 }: {
   roster: MasterPanelRoster;
   onBack: () => void;
   onSheet: (id: string) => void;
   busy?: boolean;
   onResource: OnResource;
+  onWarning: (message: string) => void;
 }) {
   return (
     <div className="campaign-master-panel">
@@ -202,14 +217,16 @@ export default function CampaignMasterPanel({
         onSheet={onSheet}
         busy={busy}
         onResource={onResource}
+        onWarning={onWarning}
       />
       <SheetRoster
-        title="Criaturas"
-        empty="Esta campanha ainda não tem criaturas."
+        title="Criaturas e NPCs"
+        empty="Esta campanha ainda não tem criaturas ou NPCs."
         sheets={roster.creatures}
         onSheet={onSheet}
         busy={busy}
         onResource={onResource}
+        onWarning={onWarning}
       />
     </div>
   );
