@@ -379,7 +379,7 @@ export function NewSheetForm({
       }
       subtitle={
         type === "monster"
-          ? "Criaturas ficam visíveis apenas para o mestre."
+          ? "Criaturas e NPCs ficam visíveis apenas para o mestre. Use esta ficha também para aliados e outros personagens da história."
           : "Comece pelo nome. Sua ficha poderá ser editada por completo."
       }
       onClose={onClose}
@@ -409,7 +409,7 @@ export function NewSheetForm({
           </Field>
           <Field
             label={
-              type === "monster" ? "Nome da criatura" : "Nome do personagem"
+              type === "monster" ? "Nome da criatura ou NPC" : "Nome do personagem"
             }
           >
             <input
@@ -472,7 +472,7 @@ export function NewSheetForm({
             Cancelar
           </Button>
           <Button disabled={busy || !eligible.length} type="submit">
-            Criar {type === "monster" ? "criatura" : "personagem"}
+            Criar {type === "monster" ? "criatura ou NPC" : "personagem"}
             <Plus size={16} />
           </Button>
         </div>
@@ -592,8 +592,8 @@ export function CampaignDetail({
         <div className="section-gap">
           <SectionTitle
             title="Além do véu"
-            subtitle="Suas criaturas. Seus segredos. Visíveis só para você."
-            action="Criar criatura"
+            subtitle="Criaturas e NPCs da sua história. Visíveis só para o mestre."
+            action="Criar criatura ou NPC"
             onAction={() => onCreate("monster")}
           />
           {monsters.length ? (
@@ -611,11 +611,11 @@ export function CampaignDetail({
             <Empty
               icon={<Skull />}
               title="O desconhecido espera por você"
-              description="Crie monstros com atributos, ataques e técnicas para desafiar a mesa."
+              description="Crie criaturas e NPCs com atributos, ataques e técnicas para participar da história."
             >
               <Button variant="secondary" onClick={() => onCreate("monster")}>
                 <Plus size={16} />
-                Criar primeira criatura
+                Criar criatura ou NPC
               </Button>
             </Empty>
           )}

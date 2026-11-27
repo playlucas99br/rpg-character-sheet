@@ -139,3 +139,20 @@ Chamadas hospedadas sem sessão e com JWT inválido, incluindo o comando `import
 ## Aceite com conta real
 
 Na prévia do PR, exportar um personagem, importar para uma campanha do mesmo sistema e recarregar. Conferir recursos/anotações e editar a nova ficha sem alterar a original. Como mestre, importar para outro participante e importar uma criatura; como jogador, confirmar que a criatura não aparece. Enviar o retrato novamente quando necessário. O fluxo positivo hospedado com contas reais ainda precisa desse aceite.
+
+# T08 — Ações rápidas no painel — 27/11/2026
+
+Base: `main` em `4c94d0f`, após a integração da T07. Branch `feat/t08-quick-actions`, responsável Lucas (Agente T08, com integração e revisão do coordenador).
+
+O painel do mestre permite informar uma quantidade inteira de 1 a 9999 e aplicar dano, cura ou gasto de energia e sanidade em personagens, criaturas e NPCs. O rótulo de energia acompanha o sistema. Gastos acima do saldo são rejeitados no cliente e no servidor, sem alterar valor ou versão; um toast informa o recurso disponível e a quantidade solicitada. Dano continua limitado a zero e cura ao máximo. Os controles ficam bloqueados durante a gravação. O resultado só é apresentado como salvo quando a operação é confirmada. Uma resposta incerta orienta sincronizar antes de repetir.
+
+## Verificação da T08
+
+- 55 testes aprovados, incluindo seis da T08. O teste de regressão primeiro reproduziu a aceitação indevida de gasto excessivo (HTTP 200); a correção passou a retornar 400, preservando saldo e versão. Cobertos gasto exato e saldo zero de energia e sanidade. A API real com SQLite confirmou o ajuste do mestre em personagem de jogador e criatura, a leitura atualizada pelo jogador, a versão incrementada e o conflito `409` ao tentar salvar um editor anterior ao ajuste. Também foram verificados limites dos recursos, sanidade preservada, sessão ausente, terceiros, isolamento de campanha, criatura privada e revogação de participação.
+- TypeScript, builds Next.js/Vercel e Vinext/Sites e bundle da Edge Function aprovados. O lint dos arquivos novos e do painel passou. O lint completo foi medido antes das alterações e já apresentava oito erros e sete avisos em módulos existentes; essas pendências não foram alteradas nesta tarefa.
+- Navegador Chromium com os componentes reais do `NexoApp` e seus estilos em demonstração isolada: dano, cura e gasto de energia concluídos, valores preservados após recarregar. Larguras de 320, 375, 768 e 1440 px sem rolagem horizontal; campos e botões de ações rápidas com altura mínima de 44 px. O harness e suas dependências temporárias não integram o PR.
+- Nenhuma mudança em consultas SQL, esquema, políticas, autenticação ou dependências do projeto. A validação de saldo usa a mesma lógica pura no painel, na demonstração e na API. O backend precisa do bundle atualizado para rejeitar chamadas diretas com gasto excessivo. NPCs usam a ficha privada existente de criaturas; não há reclassificação automática de personagens do mestre.
+
+## Aceite com contas reais
+
+Na prévia do PR, abrir o painel como mestre, aplicar dano a um personagem e conferir a ficha na sessão do jogador. Repetir com cura e gasto de energia, recarregar as duas sessões e verificar os limites. Como jogador, confirmar que o painel permanece reservado ao mestre. A validação local cobre a rota real e os componentes da demonstração; o fluxo positivo com contas reais e a entrega de eventos no serviço hospedado continuam pendentes.

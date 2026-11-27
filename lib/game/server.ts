@@ -16,6 +16,7 @@ import { newSheet, systemById } from "./systems";
 import { resolveRoll } from "./dice";
 import { ORDEM_RITUALS, ORDEM_WEAPONS } from "./ordem-library";
 import { GameError } from "./errors";
+import { resourceSpendWarning } from "./quick-actions";
 import { database, preparePersistence } from "./persistence";
 export { GameError, database };
 
@@ -415,6 +416,8 @@ export async function mutate(user: User, input: Record<string, unknown>) {
     if (action === "resource") {
       const key = z.enum(["hp", "ep", "sanity"]).parse(input.key),
         delta = z.number().int().min(-9999).max(9999).parse(input.delta);
+      const warning = resourceSpendWarning(sheet, key, delta, systemById(sheet.system).resourceLabels[key]);
+      if (warning) throw new GameError(warning);
       const r = sheet.resources[key];
       sheet.resources[key] = {
         ...r,

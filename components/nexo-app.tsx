@@ -49,6 +49,7 @@ import { makeSheetCopy, suggestedCopyName } from "../lib/game/duplicate-sheet";
 import { makeImportedSheet, validateSheetImport } from "../lib/game/sheet-import";
 import { canReadSheet } from "../lib/game/access";
 import { masterPanelFor } from "../lib/game/master-panel";
+import { resourceSpendWarning } from "../lib/game/quick-actions";
 import {
   Button,
   Die,
@@ -210,6 +211,8 @@ function demoMutation(
     if (!s) throw new Error("Ficha não encontrada.");
     const key = input.key as ResourceKey,
       r = s.resources[key];
+    const warning = resourceSpendWarning(s, key, Number(input.delta), systemById(s.system).resourceLabels[key]);
+    if (warning) throw new Error(warning);
     r.current = Math.max(0, Math.min(r.max, r.current + Number(input.delta)));
     s.updatedAt = now;
     result = { id: s.id };
@@ -1169,6 +1172,11 @@ export default function NexoApp({
                     roster={masterPanel}
                     onBack={() => navigate("campaign", masterPanel.campaign.id)}
                     onSheet={(id) => navigate("sheet", id)}
+                    onWarning={(message) => notify(message, true)}
+                    busy={busy}
+                    onResource={async (sheetId, key, delta) => Boolean(await mutation({
+                      action: "resource", sheetId, key, delta,
+                    }))}
                   />
                 ) : (
                   <Empty
@@ -1193,7 +1201,7 @@ export default function NexoApp({
                     }
                     description={
                       route.page === "bestiary"
-                        ? "Criaturas e ameaças das suas campanhas. Um espaço reservado ao mestre."
+                        ? "Criaturas e NPCs das suas campanhas. Um espaço reservado ao mestre."
                         : "Acompanhe seus personagens e as fichas das campanhas que você mestra."
                     }
                   >
@@ -1207,7 +1215,7 @@ export default function NexoApp({
                     >
                       <Plus size={16} />
                       {route.page === "bestiary"
-                        ? "Nova criatura"
+                        ? "Criar criatura ou NPC"
                         : "Novo personagem"}
                     </Button>}
                   </PageHeading>
