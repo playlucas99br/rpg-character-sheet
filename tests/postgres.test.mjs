@@ -55,6 +55,10 @@ test("hosted consolidation smoke checks roles and rolls back every fixture", asy
   await db.exec(await readFile(new URL("../supabase/tests/consolidation-smoke.sql", import.meta.url), "utf8"));
 });
 
+test("hosted encounter deployment smoke checks registry, roles, versions and fixture rollback", async () => {
+  await db.exec(await readFile(new URL("../supabase/tests/encounters-smoke.sql", import.meta.url), "utf8"));
+});
+
 test("Supabase migrations boot a new database without a legacy import marker", async () => {
   assert.deepEqual(await asRole("service_role", () => scalar("select public.nexo_schema_status() as value")), { ready: true, schemaVersion: 3 });
   assert.equal(await scalar("select count(*)::integer as value from nexo.imports"), 0);
