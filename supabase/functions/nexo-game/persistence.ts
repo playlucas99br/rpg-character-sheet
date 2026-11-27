@@ -35,6 +35,6 @@ let schemaConfirmed = false;
 export async function preparePersistence() {
   if (schemaConfirmed) return;
   const status = await database().request<{ ready: boolean; schemaVersion: number }>("schema_status");
-  if (!status.ready || status.schemaVersion < 2) throw new GameError("O banco precisa receber as migrações da aplicação.", 503);
+  if (!status.ready || status.schemaVersion < 3) throw new GameError("O banco precisa receber as migrações da aplicação.", 503);
   schemaConfirmed = true;
 }

@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 import "./readability.css";
 import "./quick-actions.css";
+import "./encounters.css";
+import "./conditions.css";
 
 export const metadata: Metadata = {
   title: "Nexo — Seu universo de RPG",

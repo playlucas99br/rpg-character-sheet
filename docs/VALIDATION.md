@@ -156,3 +156,35 @@ O painel do mestre permite informar uma quantidade inteira de 1 a 9999 e aplicar
 ## Aceite com contas reais
 
 Na prévia do PR, abrir o painel como mestre, aplicar dano a um personagem e conferir a ficha na sessão do jogador. Repetir com cura e gasto de energia, recarregar as duas sessões e verificar os limites. Como jogador, confirmar que o painel permanece reservado ao mestre. A validação local cobre a rota real e os componentes da demonstração; o fluxo positivo com contas reais e a entrega de eventos no serviço hospedado continuam pendentes.
+
+# T09 — Iniciativa e turnos — 27/11/2026
+
+Branch `feat/t09-encounters`, sobre a T08. O painel do mestre permite salvar encontros com participantes da campanha, informar iniciativa, desempatar pela ordem manual da preparação e iniciar, avançar e encerrar o combate. A primeira rodada é 1; voltar do último participante ao primeiro incrementa a rodada. Encontros encerrados ficam disponíveis para consulta. Cada encontro guarda o nome do participante para preservar o registro quando a ficha é excluída.
+
+A persistência usa a nova tabela privada `encounters`, com JSON e versão, nas migrações SQLite e Supabase. O mestre autoriza pela campanha armazenada no encontro; o servidor resolve os nomes das fichas, verifica a campanha de cada participante e recusa versões antigas com `409`. Jogadores recebem lista vazia. A migração Supabase eleva o schema para 3, registra cinco consultas literais novas, mantém RLS e bloqueio de acesso direto do navegador e envia apenas a invalidação de campanha pelo Realtime. Importações de origens D1 novas preservam também encontros; origens antigas sem a tabela continuam compatíveis.
+
+Verificações específicas: seis testes de lógica/API SQLite aprovados, cobrindo iniciativa, desempate, estados, rodadas, isolamento, campos forjados, nomes canônicos, retomada após reabrir o banco e concorrência. Dois testes PostgreSQL adicionais confirmaram o registro SQL, privacidade, gravação por versão, payload mínimo de Broadcast e importações D1 com e sem encontros. A API existente e o smoke de consolidação permaneceram aprovados.
+
+O modelo local da demonstração usa as mesmas regras de iniciativa e estado, separado das contas reais. O rollout exige aplicar a migração e atualizar a Edge Function antes de usar os novos comandos. O aceite com duas sessões reais no serviço hospedado permanece pendente.
+
+# T10 — Condições e duração — 27/11/2026
+
+Branch `feat/t10-conditions`, sobre a T09. Cada participante do encontro pode receber até 30 condições com nome e duração de 1 a 999 rodadas ou até remoção manual. A contagem diminui quando o último participante termina o turno e a rodada seguinte começa; a condição expira ao chegar a zero. Adicionar uma condição durante a rodada inclui a próxima virada nessa contagem. Condições podem ser preparadas antes do início e são preservadas ao editar nome, iniciativa ou ordem dos participantes mantidos. Encontros encerrados permitem consulta, sem novas alterações.
+
+Condições ficam no JSON privado do encontro, com o mesmo controle de versão e permissões da T09. Avançar rodada e reduzir/expirar condições é uma única gravação; a API não aplica efeitos sobre atributos, defesa ou recursos. Não há nova consulta SQL nem migração na T10.
+
+A suíte completa local passou em 68 testes, além de TypeScript. Quatro testes de condições cobrem validação, limites, identificadores, duração finita/indefinida e imutabilidade. A API real confirmou preservação na edição do rascunho, decremento somente na virada, expiração em duas rodadas, remoção manual, limite de 30, rejeição após encerramento, privacidade do mestre e concorrência entre adicionar condição e avançar turno (uma gravação e um conflito `409`). Recursos das fichas permaneceram iguais.
+
+O fluxo positivo com contas reais no serviço hospedado continua como aceite: abrir o mesmo encontro em duas sessões do mestre, aplicar condição e avançar rodada, conferindo a versão atualizada e a recusa de uma ação antiga.
+
+# Ativação de T09/T10 em produção — 27/11/2026
+
+Após autorização do proprietário, a migração `campaign_encounters` foi aplicada em `20261127225523`. O arquivo local foi alinhado à versão registrada pelo serviço. Conferidos schema 3, tabela `nexo.encounters`, RLS e as cinco consultas do registro fechado.
+
+A função `nexo-game` foi publicada na versão 7, `ACTIVE`, com encontros e condições. O código lido novamente do serviço é idêntico ao bundle validado; a autenticação própria anterior foi preservada. O smoke administrativo de encontros passou no PostgreSQL hospedado, cobrindo criação com iniciativa zero, leitura exclusiva do mestre, JSON de condições, atualização por versão, rejeição de versão antiga, restrição do navegador e Broadcast sem dados privados. Registros e mensagens temporários foram integralmente desfeitos.
+
+Perfis/campanhas/participações/fichas/rolagens/assets permaneceram em 4/6/9/9/18/2 antes e depois; encontros reais permaneceram em zero. Nenhum registro existente foi alterado. O advisor manteve somente o aviso de proteção contra senhas vazadas já documentado.
+
+A suíte local passou em 69 testes, incluindo o novo smoke reproduzido em PGlite. O teste HTTP direto desta execução encontrou timeout de rede; a verificação de API com JWT de conta real continua como aceite do proprietário. O código publicado e a persistência do serviço foram conferidos independentemente.
+
+No GitHub, os PRs #10 e #11 estavam mesclados, enquanto #12 e #13 ainda estavam abertos. Os PRs restantes foram redirecionados para `main`, porque #11 havia sido mesclado na antiga branch da T08 e seus encontros ainda não estavam na principal. Para o frontend completo em produção, integrar #12 e depois #13. A prévia que já contém a tela de encontros pode usar o backend atualizado.

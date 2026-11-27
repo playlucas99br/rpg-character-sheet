@@ -22,7 +22,8 @@ begin
       values(hero,campaign,player,'character','{}'),(monster,campaign,gm,'monster','{}');
 
     set local role service_role;
-    if public.nexo_schema_status() <> '{"ready":true,"schemaVersion":2}'::jsonb then
+    if not (public.nexo_schema_status() @> '{"ready":true}'::jsonb)
+      or (public.nexo_schema_status()->>'schemaVersion')::integer < 2 then
       raise exception 'Schema readiness failed';
     end if;
     asset := public.nexo_assets(player,'create',jsonb_build_object(

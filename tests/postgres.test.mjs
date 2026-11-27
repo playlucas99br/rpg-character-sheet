@@ -55,8 +55,12 @@ test("hosted consolidation smoke checks roles and rolls back every fixture", asy
   await db.exec(await readFile(new URL("../supabase/tests/consolidation-smoke.sql", import.meta.url), "utf8"));
 });
 
+test("hosted encounter deployment smoke checks registry, roles, versions and fixture rollback", async () => {
+  await db.exec(await readFile(new URL("../supabase/tests/encounters-smoke.sql", import.meta.url), "utf8"));
+});
+
 test("Supabase migrations boot a new database without a legacy import marker", async () => {
-  assert.deepEqual(await asRole("service_role", () => scalar("select public.nexo_schema_status() as value")), { ready: true, schemaVersion: 2 });
+  assert.deepEqual(await asRole("service_role", () => scalar("select public.nexo_schema_status() as value")), { ready: true, schemaVersion: 3 });
   assert.equal(await scalar("select count(*)::integer as value from nexo.imports"), 0);
   assert.equal(await scalar("select count(*)::integer as value from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='nexo' and c.relkind='r' and not c.relrowsecurity"), 0);
 });
@@ -70,6 +74,7 @@ test("browser roles cannot execute database RPCs or bypass deny-all table polici
       await denied(() => db.query("select public.nexo_schema_status()"));
       await denied(() => db.query("select public.nexo_assets($1,'list','{\"campaignId\":\"campaign-a\"}')", [gm]));
       await denied(() => db.query("select * from nexo.sheets"));
+      await denied(() => db.query("select * from nexo.encounters"));
     });
   }
   // Even a future accidental table grant still meets explicit RLS denial.
@@ -77,6 +82,8 @@ test("browser roles cannot execute database RPCs or bypass deny-all table polici
   try {
     await asRole("authenticated", async () => {
       assert.equal((await db.query("select * from nexo.sheets")).rows.length, 0);
+      assert.equal((await db.query("select * from nexo.encounters")).rows.length, 0);
+      await denied(() => db.query("insert into nexo.encounters(id,campaign_id,data) values('forged','campaign-a','{}')"));
       assert.equal((await db.query("update nexo.profiles set name='forged' returning id")).rows.length, 0);
       assert.equal((await db.query("delete from nexo.sheets returning id")).rows.length, 0);
       await denied(() => db.query("insert into nexo.profiles(id,name) values('forged','forged')"));
@@ -205,4 +212,53 @@ test("sheet copies use the existing SQL registry and share portraits without wid
   for (const sheet of [copy, secondCopy])
     assert.equal(await scalar("select data ? 'portraitAssetId' as value from nexo.sheets where id=$1", [sheet.id]), false, "deleting the shared image clears all references");
   await rpc(player, "delete_complete", { assetId: asset.id });
+});
+
+test("encounter SQL registry preserves GM privacy, compare-and-save and minimal broadcast payloads", async () => {
+  const call = async (sql, params) => asRole("service_role", () => scalar("select public.nexo_query($1::jsonb) as value", [JSON.stringify([{ sql, params }])]));
+  const encounter = { id: "postgres-encounter", campaignId: "campaign-a", name: "NPC D'água ?", status: "active", participants: [{ sheetId: "monster", name: "NPC privado", initiative: 15 }], round: 1, currentParticipantId: "monster", version: 1, updatedAt: "2026-11-27T17:00:00Z" };
+  const insert = "INSERT INTO encounters (id,campaign_id,data,version,updated_at) VALUES (?,?,?,1,?)";
+  const read = "SELECT e.* FROM encounters e JOIN memberships m ON m.campaign_id=e.campaign_id WHERE m.user_id=? AND m.role='gm' ORDER BY e.updated_at DESC,e.id";
+  const update = "UPDATE encounters SET data=?,version=version+1,updated_at=? WHERE id=? AND version=?";
+  await call(insert, [encounter.id, encounter.campaignId, JSON.stringify(encounter), encounter.updatedAt]);
+  assert.equal((await call(read, [gm]))[0].results.find((row) => row.id === encounter.id).data.name, encounter.name);
+  assert.equal((await call(read, [player]))[0].results.length, 0);
+  assert.equal((await call(read, [other]))[0].results.length, 0);
+  const next = { ...encounter, round: 2, version: 2 };
+  const results = await Promise.all([call(update, [JSON.stringify(next), next.updatedAt, next.id, 1]), call(update, [JSON.stringify({ ...next, round: 99 }), next.updatedAt, next.id, 1])]);
+  assert.deepEqual(results.map((result) => result[0].meta.changes).sort(), [0, 1]);
+  assert.equal(await scalar("select version as value from nexo.encounters where id=$1", [next.id]), 2);
+  assert.equal(await scalar("select (data->>'round')::integer as value from nexo.encounters where id=$1", [next.id]), 2);
+  const messages = (await db.query("select payload,event,private from realtime.messages where topic='nexo:campaign:campaign-a'")).rows;
+  assert.ok(messages.length);
+  for (const message of messages) {
+    assert.deepEqual(Object.keys(message.payload).sort(), ["campaignId", "id"]);
+    assert.equal(message.event, "invalidate");
+    assert.equal(message.private, true);
+  }
+});
+
+test("D1 imports preserve optional encounter state and remain compatible with older snapshots", async () => {
+  for (const withEncounters of [false, true]) {
+    await db.exec("begin");
+    try {
+      await db.exec("delete from nexo.campaigns; delete from nexo.profiles");
+      const snapshot = {
+        profiles: [{ id: gm, name: "GM", created_at: "2026-11-27T17:00:00Z" }],
+        campaigns: [{ id: "import-campaign", name: "Import", description: "", system: "ordem", banner: "shrine", status: "active", invite_code: "IMPORT-ENCOUNTER", created_at: "2026-11-27T17:00:00Z" }],
+        memberships: [{ campaign_id: "import-campaign", user_id: gm, role: "gm" }],
+        sheets: [], rolls: [],
+        ...(withEncounters ? { encounters: [{ id: "import-encounter", campaign_id: "import-campaign", data: JSON.stringify({ name: "Encontro preservado", round: 4 }), version: 7, updated_at: "2026-11-27T17:00:00Z" }] } : {}),
+      };
+      const source = `encounter-import-${withEncounters}`;
+      const result = await asRole("service_role", () => scalar("select public.nexo_import($1,$2::jsonb) as value", [source, JSON.stringify(snapshot)]));
+      assert.equal(result.imported, true);
+      assert.equal(result.counts.encounters, Number(withEncounters));
+      if (withEncounters) {
+        assert.equal(await scalar("select version as value from nexo.encounters where id='import-encounter'"), 7);
+        assert.equal(await scalar("select data->>'name' as value from nexo.encounters where id='import-encounter'"), "Encontro preservado");
+      }
+      assert.deepEqual(await asRole("service_role", () => scalar("select public.nexo_import($1,$2::jsonb) as value", [source, JSON.stringify(snapshot)])), result);
+    } finally { await db.exec("rollback"); }
+  }
 });

@@ -48,7 +48,7 @@ test("a lost import response is reconciled by its marker without duplicating or 
   Object.assign(env, {
     NEXO_DATABASE_PROVIDER: "supabase", SUPABASE_DATABASE_GATEWAY_URL: gateway,
     NEXO_DATABASE_TOKEN: "test-only-token", NEXO_DATABASE_SOURCE_ID: "verification-import-response",
-    DB: { prepare(sql) { assert.ok(sql.startsWith("SELECT * FROM ")); return sql; }, async batch() { snapshotReads++; return [{ results: rows }, ...Array.from({ length: 4 }, () => ({ results: [] }))]; } },
+    DB: { prepare(sql) { if (sql.startsWith("SELECT name FROM sqlite_master")) return { async first() { return null; } }; assert.ok(sql.startsWith("SELECT * FROM ")); return sql; }, async batch() { snapshotReads++; return [{ results: rows }, ...Array.from({ length: 4 }, () => ({ results: [] }))]; } },
   });
   try {
     globalThis.fetch = async (_url, init) => {
@@ -56,6 +56,7 @@ test("a lost import response is reconciled by its marker without duplicating or 
       if (body.operation === "import_status") return Response.json({ data: { imported } });
       assert.equal(body.operation, "import");
       assert.deepEqual(body.snapshot.profiles, rows);
+      assert.deepEqual(body.snapshot.encounters, []);
       imports++; imported = true;
       throw new TypeError("Import committed, response lost");
     };
