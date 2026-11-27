@@ -177,6 +177,12 @@ Ao adicionar um sistema, mantenha o sistema de campanhas existentes estável. Ca
 
 ## Publicação do bloco T08–T10 e modais
 
-Os PRs são sequenciais: T08 → T09 → T10 → ajuste de modais. O frontend da T09/T10 exige o schema 3 e o bundle correspondente de `nexo-game`; a versão 6 atualmente publicada contém apenas a correção da T08 e mantém compatibilidade com o schema 2 existente.
+O frontend de encontros e condições usa o schema 3 e o backend `nexo-game` versão 7, ambos ativos. Os PRs restantes #12 e #13 apontam para `main`; integrar #12 e depois #13 para publicar também a interface completa.
 
-A migração `supabase/migrations/20261127172951_campaign_encounters.sql` foi validada em PostgreSQL/PGlite e está pendente de autorização explícita para produção. A revisão automática bloqueou sua aplicação por adicionar tabela, RLS, permissões, gatilho e suporte de importação. Após autorização, aplicar a migração, conferir schema/tabela/permissões e publicar o bundle T09/T10 validado. Preservar a autenticação própria da função e não habilitar exposição direta das tabelas ao navegador. O aceite positivo com duas sessões reais continua no roteiro de validação.
+A migração `supabase/migrations/20261127225523_campaign_encounters.sql` corresponde à versão registrada no serviço. Preservar a autenticação própria da função e manter as tabelas privadas ao navegador. O aceite com duas sessões reais continua no roteiro de validação.
+
+## Publicação de encontros e condições — 27/11/2026
+
+Migração `20261127225523_campaign_encounters.sql` aplicada, schema 3 pronto e `nexo-game` versão 7 ativa. O bundle publicado corresponde ao código conferido e inclui `create_encounter` e as ações de condições. O arquivo local usa a versão devolvida pelo histórico remoto para evitar reaplicar a mesma migração com outro timestamp.
+
+O smoke `supabase/tests/encounters-smoke.sql` pode ser executado administrativamente após a publicação; ele cria fixtures somente dentro de uma subtransação desfeita e confirma que os registros e Broadcasts foram removidos. O mesmo SQL integra os testes PGlite. Para publicar o frontend, os PRs #12 e #13 apontam para `main`; integrar nessa ordem, pois #11 havia entrado apenas na antiga branch da T08.

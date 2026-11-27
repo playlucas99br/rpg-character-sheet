@@ -187,6 +187,16 @@ Verificação final do conjunto: 68 testes, TypeScript, builds Next.js/Vercel e 
 
 ## Situação do backend em produção
 
-A correção da T08 foi publicada separadamente em `nexo-game` versão 6, `ACTIVE`, a partir da branch da T08. O código lido do serviço corresponde ao bundle local validado, com a autenticação anterior preservada. Essa versão rejeita gastos excessivos de energia e sanidade e não contém comandos de encontros.
+O backend foi atualizado para `nexo-game` versão 7, `ACTIVE`, após a autorização do proprietário. A migração de encontros foi aplicada e o schema 3 está pronto. O bloqueio anterior de autorização foi resolvido; a verificação da publicação está registrada na seção seguinte. A interface completa depende dos PRs #12 e #13 em `main`.
 
-A migração de T09 foi recusada pela revisão automática por exigir autorização explícita para alterar o banco de produção (tabela, RLS, permissões, gatilho e importador). A conferência posterior confirmou schema 2 e ausência de `nexo.encounters`. A migração permanece preparada e testada no repositório; T09/T10 não foram ativadas no serviço hospedado. Após autorização e aplicação da migração, é necessário publicar o bundle do bloco T09/T10 e validar com sessões reais. Nenhum registro de jogador foi usado para o QA.
+# Ativação de T09/T10 em produção — 27/11/2026
+
+Após autorização do proprietário, a migração `campaign_encounters` foi aplicada em `20261127225523`. O arquivo local foi alinhado à versão registrada pelo serviço. Conferidos schema 3, tabela `nexo.encounters`, RLS e as cinco consultas do registro fechado.
+
+A função `nexo-game` foi publicada na versão 7, `ACTIVE`, com encontros e condições. O código lido novamente do serviço é idêntico ao bundle validado; a autenticação própria anterior foi preservada. O smoke administrativo de encontros passou no PostgreSQL hospedado, cobrindo criação com iniciativa zero, leitura exclusiva do mestre, JSON de condições, atualização por versão, rejeição de versão antiga, restrição do navegador e Broadcast sem dados privados. Registros e mensagens temporários foram integralmente desfeitos.
+
+Perfis/campanhas/participações/fichas/rolagens/assets permaneceram em 4/6/9/9/18/2 antes e depois; encontros reais permaneceram em zero. Nenhum registro existente foi alterado. O advisor manteve somente o aviso de proteção contra senhas vazadas já documentado.
+
+A suíte local passou em 69 testes, incluindo o novo smoke reproduzido em PGlite. O teste HTTP direto desta execução encontrou timeout de rede; a verificação de API com JWT de conta real continua como aceite do proprietário. O código publicado e a persistência do serviço foram conferidos independentemente.
+
+No GitHub, os PRs #10 e #11 estavam mesclados, enquanto #12 e #13 ainda estavam abertos. Os PRs restantes foram redirecionados para `main`, porque #11 havia sido mesclado na antiga branch da T08 e seus encontros ainda não estavam na principal. Para o frontend completo em produção, integrar #12 e depois #13. A prévia que já contém a tela de encontros pode usar o backend atualizado.
