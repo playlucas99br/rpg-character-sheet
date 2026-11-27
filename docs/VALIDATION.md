@@ -176,3 +176,17 @@ Condições ficam no JSON privado do encontro, com o mesmo controle de versão e
 A suíte completa local passou em 68 testes, além de TypeScript. Quatro testes de condições cobrem validação, limites, identificadores, duração finita/indefinida e imutabilidade. A API real confirmou preservação na edição do rascunho, decremento somente na virada, expiração em duas rodadas, remoção manual, limite de 30, rejeição após encerramento, privacidade do mestre e concorrência entre adicionar condição e avançar turno (uma gravação e um conflito `409`). Recursos das fichas permaneceram iguais.
 
 O fluxo positivo com contas reais no serviço hospedado continua como aceite: abrir o mesmo encontro em duas sessões do mestre, aplicar condição e avançar rodada, conferindo a versão atualizada e a recusa de uma ação antiga.
+
+# Ajuste compartilhado — Modais e barras de rolagem — 27/11/2026
+
+Branch `fix/modal-layout-and-scroll`, sobre a T10. As modais mantêm o cabeçalho com X e o rodapé de ações visíveis; apenas o conteúdo rola. No editor, o campo desabilitado fica dentro da área de conteúdo e as ações de salvar, guardar ou descartar rascunho permanecem no mesmo formulário. Fechar pelo X, clique fora ou Escape grava o rascunho local antes de sair; se o navegador negar armazenamento, a edição permanece aberta com aviso. Um arrasto iniciado dentro e solto fora não fecha a janela. Barras de rolagem acompanham o tema, com tratamento para alto contraste e impressão preservada.
+
+QA Chromium com os componentes reais da demonstração: editor em 320×568, 375×667, 768×360 e 1440×900; cabeçalho/X e todas as ações do rodapé visíveis antes e depois de rolar, sem rolagem horizontal. Também verificados os formulários de campanha e encontro. Confirmados recuperação do rascunho ao fechar por fora/X/Escape, descarte, salvamento por botão e Enter, arrasto e armazenamento negado. Nenhum erro do aplicativo no navegador. Firefox, teclado virtual e contas hospedadas não foram revalidados.
+
+Verificação final do conjunto: 68 testes, TypeScript, builds Next.js/Vercel e Vinext/Sites e bundle Supabase aprovados. A conferência visual do combate cobriu 16 combinações de estado/largura (320, 375, 768 e 1440 px), iniciativa, desempate, duração/expiração, remoção manual, recarga, seleção de encontros, encerramento e acesso de jogador. O lint dos módulos novos passou; o lint completo permanece com sete erros e sete avisos anteriores. O ajuste da modal removeu o erro antigo de atualização de ref durante render.
+
+## Situação do backend em produção
+
+A correção da T08 foi publicada separadamente em `nexo-game` versão 6, `ACTIVE`, a partir da branch da T08. O código lido do serviço corresponde ao bundle local validado, com a autenticação anterior preservada. Essa versão rejeita gastos excessivos de energia e sanidade e não contém comandos de encontros.
+
+A migração de T09 foi recusada pela revisão automática por exigir autorização explícita para alterar o banco de produção (tabela, RLS, permissões, gatilho e importador). A conferência posterior confirmou schema 2 e ausência de `nexo.encounters`. A migração permanece preparada e testada no repositório; T09/T10 não foram ativadas no serviço hospedado. Após autorização e aplicação da migração, é necessário publicar o bundle do bloco T09/T10 e validar com sessões reais. Nenhum registro de jogador foi usado para o QA.

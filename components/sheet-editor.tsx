@@ -69,6 +69,20 @@ export default function SheetEditor({
   function clearDraft() {
     try { sessionStorage.removeItem(storageKey); } catch {}
   }
+  function closeEditor() {
+    if (busy) return;
+    if (dirty || recovery) {
+      try {
+        sessionStorage.setItem(storageKey, JSON.stringify(recovery ?? {
+          base, value: draft, savedAt: new Date().toISOString(),
+        } satisfies SheetDraft));
+      } catch {
+        setStorageError(true);
+        return;
+      }
+    }
+    onClose();
+  }
   function resolveConflict(keepMine: boolean) {
     if (!recovery) return;
     const merged = reconcileDraft(recovery, sheet);
@@ -96,9 +110,10 @@ export default function SheetEditor({
       title={`Editar ${sheet.type === "monster" ? "criatura" : "personagem"}`}
       subtitle="Deixe a ficha com a cara da sua história."
       wide
-      onClose={() => { if (!busy) onClose(); }}
+      onClose={closeEditor}
     >
       <form
+        className="sheet-editor-form"
         onSubmit={async (e) => {
           e.preventDefault();
           let next = draft;
@@ -124,7 +139,6 @@ export default function SheetEditor({
           else setError("O salvamento não foi confirmado. Sua edição continua aqui. Sincronize a conta antes de tentar novamente.");
         }}
       >
-        <fieldset disabled={busy} className="editor-fields">
         <TabList
           id={tabsId}
           className="editor-tabs"
@@ -134,6 +148,7 @@ export default function SheetEditor({
           onChange={(key) => { setTab(key); setError(""); }}
         />
         <div className="modal-body editor-body" role="tabpanel" id={`${tabsId}-panel-${tab}`} aria-labelledby={`${tabsId}-tab-${tab}`} tabIndex={0}>
+        <fieldset disabled={busy} className="editor-fields">
           {recovery && <div className="draft-notice" role="alert">
             <strong>Há um rascunho e uma versão mais recente na conta.</strong>
             <p>Campos alterados nas duas versões: {conflicts.map((key) => fieldNames[key] || key).join(", ") || "nenhum"}. Escolha os valores desses campos. As demais edições serão preservadas.</p>
@@ -700,19 +715,21 @@ export default function SheetEditor({
               {error}
             </p>
           )}
-        </div>
-        <div className="modal-footer">
-          <span className="editor-save-hint">{dirty || recovery ? `Edição ainda não salva ${destination}` : "Nenhuma alteração pendente"}</span>
-          {(dirty || recovery) && <Button type="button" variant="ghost" className="danger-text" onClick={() => { clearDraft(); onClose(); }}>Descartar rascunho</Button>}
-          <Button type="button" variant="ghost" onClick={onClose}>
-            {dirty || recovery ? "Fechar e guardar rascunho" : "Fechar"}
-          </Button>
-          <Button type="submit" disabled={busy || !!recovery || !loaded}>
-            {busy ? "Salvando…" : "Salvar ficha"}
-            <Check size={16} />
-          </Button>
-        </div>
         </fieldset>
+        </div>
+        <div className="modal-footer editor-footer">
+          <span className="editor-save-hint">{dirty || recovery ? `Edição ainda não salva ${destination}` : "Nenhuma alteração pendente"}</span>
+          <div className={`editor-footer-actions ${dirty || recovery ? "has-draft" : ""}`}>
+            {(dirty || recovery) && <Button type="button" variant="ghost" className="danger-text" disabled={busy} onClick={() => { clearDraft(); onClose(); }}>Descartar rascunho</Button>}
+            <Button type="button" variant="ghost" disabled={busy} onClick={closeEditor}>
+              {dirty || recovery ? "Fechar e guardar rascunho" : "Fechar"}
+            </Button>
+            <Button type="submit" disabled={busy || !!recovery || !loaded}>
+              {busy ? "Salvando…" : "Salvar ficha"}
+              <Check size={16} />
+            </Button>
+          </div>
+        </div>
       </form>
     </Modal>
   );

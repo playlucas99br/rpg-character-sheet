@@ -160,9 +160,9 @@ export function Modal({
   wide?: boolean;
 }) {
   const titleId = useId();
-  const dialog = useRef<HTMLDialogElement>(null),
-    closeRef = useRef(onClose);
-  closeRef.current = onClose;
+  const subtitleId = useId();
+  const dialog = useRef<HTMLDialogElement>(null);
+  const backdropPointerDown = useRef(false);
   useEffect(() => {
     const el = dialog.current!;
     el.showModal();
@@ -179,19 +179,28 @@ export function Modal({
       className={`modal ${wide ? "wide" : ""}`}
       onCancel={(e) => {
         e.preventDefault();
-        closeRef.current();
+        onClose();
+      }}
+      onPointerDown={(e) => {
+        backdropPointerDown.current = e.target === e.currentTarget;
+      }}
+      onPointerCancel={() => {
+        backdropPointerDown.current = false;
       }}
       onClick={(e) => {
-        if (e.target === e.currentTarget) closeRef.current();
+        const clickedBackdrop = backdropPointerDown.current && e.target === e.currentTarget;
+        backdropPointerDown.current = false;
+        if (clickedBackdrop) onClose();
       }}
       aria-labelledby={titleId}
+      aria-describedby={subtitle ? subtitleId : undefined}
     >
       <div className="modal-inner">
-        <div className="modal-heading">
+        <header className="modal-heading">
           <div>
             <span className="eyebrow">NEXO / SUA MESA</span>
             <h2 id={titleId}>{title}</h2>
-            {subtitle && <p>{subtitle}</p>}
+            {subtitle && <p id={subtitleId}>{subtitle}</p>}
           </div>
           <button
             type="button"
@@ -201,7 +210,7 @@ export function Modal({
           >
             <X size={20} />
           </button>
-        </div>
+        </header>
         {children}
       </div>
     </dialog>

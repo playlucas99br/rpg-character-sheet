@@ -1,0 +1,241 @@
+@media screen {
+  :root {
+    --scrollbar-thumb: #788a70;
+    --scrollbar-thumb-hover: #a2b48f;
+    --scrollbar-track: #161c18;
+  }
+
+  html,
+  body,
+  .app-main,
+  .main-content,
+  .sidebar,
+  .modal,
+  .modal *,
+  .sheet-tabs,
+  .book-tabs,
+  .element-tabs,
+  .circle-sections,
+  .reference-grid,
+  .member-list,
+  .roll-history,
+  .encounter-roster {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    border-radius: 999px;
+    background: var(--scrollbar-track);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border: 2px solid var(--scrollbar-track);
+    border-radius: 999px;
+    background: var(--scrollbar-thumb);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: var(--scrollbar-track);
+  }
+
+  .modal {
+    --modal-gutter: 16px;
+    max-height: calc(100dvh - var(--modal-gutter) * 2);
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .modal[open] {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .modal .modal-inner {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    max-height: calc(100dvh - var(--modal-gutter) * 2 - 2px);
+    overflow: hidden;
+  }
+
+  .modal .modal-inner > form {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    overflow: hidden;
+  }
+
+  .modal .modal-heading,
+  .modal .modal-footer,
+  .modal .editor-tabs {
+    flex: 0 0 auto;
+  }
+
+  .modal .modal-heading {
+    background: #1b211c;
+  }
+
+  .modal .modal-heading > div {
+    min-width: 0;
+  }
+
+  .modal .modal-heading h2,
+  .modal .modal-heading p {
+    overflow-wrap: anywhere;
+  }
+
+  .modal .modal-heading .icon-button {
+    flex: 0 0 var(--touch-target, 44px);
+  }
+
+  .modal .modal-body,
+  .modal .editor-body {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
+  .modal .modal-footer {
+    position: relative;
+    z-index: 1;
+    background: #192019;
+  }
+
+  .modal .editor-fields {
+    display: block;
+    min-width: 0;
+  }
+
+  .modal .editor-footer {
+    gap: 8px 12px;
+  }
+
+  .modal .editor-footer .editor-save-hint {
+    flex: 1 1 12rem;
+    margin: 0;
+  }
+
+  .editor-footer-actions {
+    display: flex;
+    flex: 0 1 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .modal .editor-footer-actions .button {
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+@media screen and (max-width: 680px) {
+  .modal {
+    --modal-gutter: 10px;
+  }
+
+  .modal .modal-heading {
+    padding: 16px 18px;
+  }
+
+  .modal .modal-heading h2 {
+    font-size: 1.25rem;
+  }
+
+  .modal .modal-footer {
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 12px 18px;
+  }
+
+  .modal .editor-footer .editor-save-hint {
+    flex-basis: 100%;
+    font-size: .8125rem;
+  }
+
+  .editor-footer-actions {
+    display: grid;
+    flex: 1 1 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .modal .editor-footer-actions .button {
+    width: 100%;
+    min-height: var(--touch-target, 44px);
+    padding: 8px 10px;
+  }
+
+  .editor-footer-actions.has-draft .button[type="submit"] {
+    grid-column: 1 / -1;
+  }
+}
+
+@media screen and (max-height: 560px) {
+  .modal {
+    --modal-gutter: 8px;
+  }
+
+  .modal .modal-heading {
+    padding-block: 10px;
+  }
+
+  .modal .modal-heading .eyebrow {
+    display: none;
+  }
+
+  .modal .modal-heading h2 {
+    font-size: 1.125rem;
+  }
+
+  .modal .modal-heading p {
+    margin-top: 3px;
+    font-size: .8125rem;
+    line-height: 1.4;
+  }
+
+  .modal .editor-tabs {
+    padding-top: 6px;
+  }
+
+  .modal .modal-footer {
+    padding-block: 8px;
+  }
+
+  .modal .editor-footer .editor-save-hint {
+    font-size: .75rem;
+    line-height: 1.4;
+  }
+}
+
+@media screen and (forced-colors: active) {
+  html,
+  body,
+  .modal,
+  .modal * {
+    scrollbar-color: auto;
+  }
+}

@@ -174,3 +174,9 @@ Rollback deste PR: volte frontend e `nexo-game` à versão anterior. A migraçã
 | Sistema novo | Registro em `systems.ts`, tipos, validação, dados, constraint da campanha e testes |
 
 Ao adicionar um sistema, mantenha o sistema de campanhas existentes estável. Campos comuns ficam relacionais; regras variáveis podem ficar no JSON validado. Extraia uma tabela específica quando houver necessidade real de pesquisa, integridade ou relacionamentos, com migração e compatibilidade de leitura dos registros antigos.
+
+## Publicação do bloco T08–T10 e modais
+
+Os PRs são sequenciais: T08 → T09 → T10 → ajuste de modais. O frontend da T09/T10 exige o schema 3 e o bundle correspondente de `nexo-game`; a versão 6 atualmente publicada contém apenas a correção da T08 e mantém compatibilidade com o schema 2 existente.
+
+A migração `supabase/migrations/20261127172951_campaign_encounters.sql` foi validada em PostgreSQL/PGlite e está pendente de autorização explícita para produção. A revisão automática bloqueou sua aplicação por adicionar tabela, RLS, permissões, gatilho e suporte de importação. Após autorização, aplicar a migração, conferir schema/tabela/permissões e publicar o bundle T09/T10 validado. Preservar a autenticação própria da função e não habilitar exposição direta das tabelas ao navegador. O aceite positivo com duas sessões reais continua no roteiro de validação.
