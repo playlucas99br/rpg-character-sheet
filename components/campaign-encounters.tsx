@@ -4,6 +4,7 @@ import { ArrowDown, ArrowUp, Flag, Play, Plus, SkipForward } from "lucide-react"
 import type { Campaign, Encounter, Sheet } from "../lib/game/types";
 import { MAX_ENCOUNTER_PARTICIPANTS, parseEncounterDraft, type EncounterDraft } from "../lib/game/encounters";
 import { Button, Field, Modal } from "./ui";
+import ConditionControls from "./encounter-conditions";
 
 const statusLabels: Record<Encounter["status"], string> = { draft: "Em preparação", active: "Em andamento", finished: "Encerrado" };
 
@@ -162,6 +163,14 @@ export default function CampaignEncounters({ campaign, sheets, encounters = [], 
               <span className="encounter-initiative" aria-label={`Iniciativa ${participant.initiative}`}>{participant.initiative}</span>
               <div className="encounter-participant-details"><strong>{byId.get(participant.sheetId)?.name ?? participant.name}</strong>{!byId.has(participant.sheetId) && <small>Ficha removida; registro do encontro preservado.</small>}</div>
               {participant.sheetId === current.currentParticipantId && <span className="encounter-current-label">Turno atual</span>}
+              <ConditionControls
+                key={`${current.id}:${participant.sheetId}`}
+                participantName={byId.get(participant.sheetId)?.name ?? participant.name}
+                conditions={participant.conditions}
+                disabled={locked || current.status === "finished"}
+                onAdd={async (name, remainingRounds) => Boolean(await act({ action: "add_condition", campaignId: campaign.id, encounterId: current.id, version: current.version, sheetId: participant.sheetId, condition: { name, remainingRounds } }))}
+                onRemove={async (conditionId) => Boolean(await act({ action: "remove_condition", campaignId: campaign.id, encounterId: current.id, version: current.version, sheetId: participant.sheetId, conditionId }))}
+              />
             </li>)}
           </ol>
           <div className="encounter-controls">

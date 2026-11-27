@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { Encounter, EncounterParticipant, Workspace } from "./types";
 import { randomId } from "./id";
 import { advanceEncounter, finishEncounter, isEncounterAction, parseEncounterDraft, startEncounter } from "./encounters";
+import { changeEncounterCondition, preserveParticipantConditions } from "./conditions";
 
 /** Demo writes share combat rules with the API, but stay in the cloned local workspace. */
 export function mutateDemoEncounter(state: Workspace, input: Record<string, unknown>): { id: string } {
@@ -29,7 +30,9 @@ export function mutateDemoEncounter(state: Workspace, input: Record<string, unkn
   let next: Encounter;
   if (input.action === "update_encounter") {
     if (previous.status !== "draft") throw new Error("Os participantes só podem ser editados enquanto o encontro está em preparação.");
-    next = { ...previous, name: parseEncounterDraft(input).name, participants: participants() };
+    next = { ...previous, name: parseEncounterDraft(input).name, participants: preserveParticipantConditions(participants(), previous.participants) };
+  } else if (input.action === "add_condition" || input.action === "remove_condition") {
+    next = changeEncounterCondition(previous, input);
   } else if (input.action === "start_encounter") next = startEncounter(previous);
   else if (input.action === "advance_turn") next = advanceEncounter(previous);
   else next = finishEncounter(previous);

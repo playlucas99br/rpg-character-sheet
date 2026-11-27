@@ -123,10 +123,16 @@ export type Roll = {
   visibility: "table" | "gm";
   createdAt: string;
 };
+export type EncounterCondition = {
+  id: string;
+  name: string;
+  remainingRounds: number | null;
+};
 export type EncounterParticipant = {
   sheetId: string;
   name: string;
   initiative: number;
+  conditions?: EncounterCondition[];
 };
 export type Encounter = {
   id: string;

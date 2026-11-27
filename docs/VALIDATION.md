@@ -166,3 +166,13 @@ A persistência usa a nova tabela privada `encounters`, com JSON e versão, nas 
 Verificações específicas: seis testes de lógica/API SQLite aprovados, cobrindo iniciativa, desempate, estados, rodadas, isolamento, campos forjados, nomes canônicos, retomada após reabrir o banco e concorrência. Dois testes PostgreSQL adicionais confirmaram o registro SQL, privacidade, gravação por versão, payload mínimo de Broadcast e importações D1 com e sem encontros. A API existente e o smoke de consolidação permaneceram aprovados.
 
 O modelo local da demonstração usa as mesmas regras de iniciativa e estado, separado das contas reais. O rollout exige aplicar a migração e atualizar a Edge Function antes de usar os novos comandos. O aceite com duas sessões reais no serviço hospedado permanece pendente.
+
+# T10 — Condições e duração — 27/11/2026
+
+Branch `feat/t10-conditions`, sobre a T09. Cada participante do encontro pode receber até 30 condições com nome e duração de 1 a 999 rodadas ou até remoção manual. A contagem diminui quando o último participante termina o turno e a rodada seguinte começa; a condição expira ao chegar a zero. Adicionar uma condição durante a rodada inclui a próxima virada nessa contagem. Condições podem ser preparadas antes do início e são preservadas ao editar nome, iniciativa ou ordem dos participantes mantidos. Encontros encerrados permitem consulta, sem novas alterações.
+
+Condições ficam no JSON privado do encontro, com o mesmo controle de versão e permissões da T09. Avançar rodada e reduzir/expirar condições é uma única gravação; a API não aplica efeitos sobre atributos, defesa ou recursos. Não há nova consulta SQL nem migração na T10.
+
+A suíte completa local passou em 68 testes, além de TypeScript. Quatro testes de condições cobrem validação, limites, identificadores, duração finita/indefinida e imutabilidade. A API real confirmou preservação na edição do rascunho, decremento somente na virada, expiração em duas rodadas, remoção manual, limite de 30, rejeição após encerramento, privacidade do mestre e concorrência entre adicionar condição e avançar turno (uma gravação e um conflito `409`). Recursos das fichas permaneceram iguais.
+
+O fluxo positivo com contas reais no serviço hospedado continua como aceite: abrir o mesmo encontro em duas sessões do mestre, aplicar condição e avançar rodada, conferindo a versão atualizada e a recusa de uma ação antiga.

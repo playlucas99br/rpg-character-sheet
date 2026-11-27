@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { GameError } from "./errors.ts";
 import type { Encounter, EncounterParticipant } from "./types";
+import { tickRoundConditions } from "./conditions.ts";
 
 export const MAX_ENCOUNTER_PARTICIPANTS = 60;
-export const ENCOUNTER_ACTIONS = ["create_encounter", "update_encounter", "start_encounter", "advance_turn", "finish_encounter"] as const;
+export const ENCOUNTER_ACTIONS = ["create_encounter", "update_encounter", "start_encounter", "advance_turn", "finish_encounter", "add_condition", "remove_condition"] as const;
 export function isEncounterAction(action: unknown): action is typeof ENCOUNTER_ACTIONS[number] {
   return typeof action === "string" && (ENCOUNTER_ACTIONS as readonly string[]).includes(action);
 }
@@ -46,7 +47,8 @@ export function advanceEncounter(encounter: Encounter): Encounter {
   const nextIndex = (currentIndex + 1) % encounter.participants.length;
   const round = encounter.round + (nextIndex === 0 ? 1 : 0);
   if (!Number.isSafeInteger(round) || round < 1) throw new GameError("A rodada do encontro não é válida.");
-  return { ...encounter, round, currentParticipantId: encounter.participants[nextIndex].sheetId };
+  return { ...encounter, round, currentParticipantId: encounter.participants[nextIndex].sheetId,
+    participants: nextIndex === 0 ? tickRoundConditions(encounter.participants) : encounter.participants };
 }
 
 export function finishEncounter(encounter: Encounter): Encounter {

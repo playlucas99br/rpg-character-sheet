@@ -138,3 +138,78 @@ test("encounters persist private GM initiative and turn state with campaign isol
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test("encounter conditions preserve drafts and expire atomically by full rounds with GM-only versioned changes", async () => {
+  const sqlite = new DatabaseSync(":memory:");
+  env.DB = new LocalD1(sqlite);
+  for (const file of readdirSync(new URL("../drizzle/", import.meta.url)).filter((name) => name.endsWith(".sql")).sort()) sqlite.exec(readFileSync(new URL(`../drizzle/${file}`, import.meta.url), "utf8"));
+  try {
+    const createdCampaign = await request("conditions-gm", { action: "create_campaign", campaign: { name: "Condições", description: "", system: "jujutsu", banner: "shrine" } });
+    const campaignId = createdCampaign.data.result.id;
+    await request("conditions-player", { action: "join", code: createdCampaign.data.campaigns[0].inviteCode });
+    const pc = await request("conditions-player", { action: "create_sheet", campaignId, type: "character", name: "Herói" });
+    const npc = await request("conditions-gm", { action: "create_sheet", campaignId, type: "monster", name: "NPC" });
+    const pcId = pc.data.result.id, npcId = npc.data.result.id;
+    const created = await request("conditions-gm", { action: "create_encounter", campaignId, name: "Teste de duração", participants: [{ sheetId: pcId, initiative: 20 }, { sheetId: npcId, initiative: 10 }] });
+    let current = created.data.encounters[0];
+    const findPc = () => current.participants.find((item) => item.sheetId === pcId);
+    const act = async (action, extra = {}, actor = "conditions-gm") => {
+      const result = await request(actor, { action, campaignId, encounterId: current.id, version: current.version, ...extra });
+      if (result.status === 200) current = result.data.encounters.find((item) => item.id === current.id);
+      return result;
+    };
+    const add = { sheetId: pcId, condition: { name: "Atordoado", remainingRounds: 2 } };
+    assert.equal((await act("add_condition", add, "conditions-player")).status, 403);
+    assert.equal((await act("add_condition", add, "outsider")).status, 403);
+    assert.equal((await act("add_condition", { ...add, sheetId: "foreign" })).status, 404);
+    assert.equal((await act("add_condition", { ...add, condition: { name: "Inválida", remainingRounds: 0 } })).status, 400);
+    assert.equal(current.version, 1);
+    assert.equal((await act("add_condition", add)).status, 200);
+    const finiteId = findPc().conditions[0].id;
+    assert.equal((await act("update_encounter", { name: "Mantém condições", participants: [{ sheetId: pcId, initiative: 30 }, { sheetId: npcId, initiative: 10 }] })).status, 200);
+    assert.equal(findPc().conditions[0].id, finiteId, "editing initiative must preserve conditions already applied in the draft");
+    assert.equal((await act("start_encounter")).status, 200);
+    assert.equal(findPc().conditions[0].remainingRounds, 2);
+    await act("add_condition", { sheetId: pcId, condition: { name: "Marcado", remainingRounds: null } });
+    const indefiniteId = findPc().conditions.find((item) => item.name === "Marcado").id;
+    const previousVersion = current.version;
+    assert.equal((await act("advance_turn")).status, 200);
+    assert.equal(current.round, 1);
+    assert.equal(findPc().conditions.find((item) => item.id === finiteId).remainingRounds, 2);
+    const replay = await request("conditions-gm", { action: "advance_turn", campaignId, encounterId: current.id, version: previousVersion });
+    assert.equal(replay.status, 409);
+    await act("advance_turn");
+    assert.equal(current.round, 2);
+    assert.equal(findPc().conditions.find((item) => item.id === finiteId).remainingRounds, 1);
+    await act("advance_turn"); await act("advance_turn");
+    assert.equal(current.round, 3);
+    assert.ok(!findPc().conditions.some((item) => item.id === finiteId));
+    assert.deepEqual(findPc().conditions.map((item) => [item.id, item.remainingRounds]), [[indefiniteId, null]]);
+    assert.equal((await act("remove_condition", { sheetId: pcId, conditionId: indefiniteId })).status, 200);
+    assert.deepEqual(findPc().conditions, []);
+
+    const version = current.version;
+    const outcomes = await Promise.all([
+      request("conditions-gm", { action: "advance_turn", campaignId, encounterId: current.id, version }),
+      request("conditions-gm", { action: "add_condition", campaignId, encounterId: current.id, version, ...add }),
+    ]);
+    assert.deepEqual(outcomes.map((item) => item.status).sort(), [200, 409]);
+    current = (await request("conditions-gm")).data.encounters.find((item) => item.id === current.id);
+    assert.equal(current.version, version + 1);
+    for (let count = findPc().conditions.length; count < 30; count++) {
+      assert.equal((await act("add_condition", { sheetId: pcId, condition: { name: `Condição ${count}`, remainingRounds: null } })).status, 200);
+    }
+    const fullVersion = current.version;
+    assert.equal((await act("add_condition", add)).status, 400);
+    assert.equal(current.version, fullVersion);
+    assert.equal(findPc().conditions.length, 30);
+    assert.deepEqual((await request("conditions-player")).data.encounters, []);
+    const savedPc = (await request("conditions-player")).data.sheets.find((item) => item.id === pcId);
+    assert.deepEqual(savedPc.resources, pc.data.sheets.find((item) => item.id === pcId).resources, "conditions never apply automatic resource effects");
+    await act("finish_encounter");
+    const finishedVersion = current.version;
+    assert.equal((await act("remove_condition", { sheetId: pcId, conditionId: findPc().conditions[0].id })).status, 400);
+    assert.equal((await act("add_condition", add)).status, 400);
+    assert.equal(current.version, finishedVersion);
+  } finally { delete env.DB; sqlite.close(); }
+});

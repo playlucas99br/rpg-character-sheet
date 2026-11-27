@@ -3,6 +3,7 @@ import type { Encounter, EncounterParticipant, User } from "./types";
 import { database } from "./persistence";
 import { GameError } from "./errors";
 import { ENCOUNTER_ACTIONS, advanceEncounter, finishEncounter, parseEncounterDraft, startEncounter, type EncounterDraft } from "./encounters";
+import { changeEncounterCondition, preserveParticipantConditions } from "./conditions";
 
 type EncounterRow = { id: string; campaign_id: string; data: string; version: number; updated_at: string };
 const idSchema = z.string().min(1).max(100);
@@ -65,7 +66,9 @@ export async function mutateEncounter(user: User, input: Record<string, unknown>
   if (action === "update_encounter") {
     if (encounter.status !== "draft") throw new GameError("Os participantes só podem ser editados enquanto o encontro está em preparação.");
     const draft = parseEncounterDraft(input);
-    encounter = { ...encounter, name: draft.name, participants: await participantsFor(row.campaign_id, draft) };
+    encounter = { ...encounter, name: draft.name, participants: preserveParticipantConditions(await participantsFor(row.campaign_id, draft), encounter.participants) };
+  } else if (action === "add_condition" || action === "remove_condition") {
+    encounter = changeEncounterCondition(encounter, input);
   } else if (action === "start_encounter") encounter = startEncounter(encounter);
   else if (action === "advance_turn") encounter = advanceEncounter(encounter);
   else encounter = finishEncounter(encounter);
