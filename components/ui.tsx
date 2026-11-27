@@ -162,7 +162,6 @@ export function Modal({
   const titleId = useId();
   const subtitleId = useId();
   const dialog = useRef<HTMLDialogElement>(null);
-  const backdropPointerDown = useRef(false);
   useEffect(() => {
     const el = dialog.current!;
     el.showModal();
@@ -180,17 +179,6 @@ export function Modal({
       onCancel={(e) => {
         e.preventDefault();
         onClose();
-      }}
-      onPointerDown={(e) => {
-        backdropPointerDown.current = e.target === e.currentTarget;
-      }}
-      onPointerCancel={() => {
-        backdropPointerDown.current = false;
-      }}
-      onClick={(e) => {
-        const clickedBackdrop = backdropPointerDown.current && e.target === e.currentTarget;
-        backdropPointerDown.current = false;
-        if (clickedBackdrop) onClose();
       }}
       aria-labelledby={titleId}
       aria-describedby={subtitle ? subtitleId : undefined}
