@@ -13,6 +13,7 @@ test("current JSON exports restore all six systems as new sheets with current re
     source.resources.hp.current = 2;
     source.notes = "Pista: D'água ? 🎲";
     source.inventory = "Equipamento salvo";
+    source.inventoryItems = [{ id: "pack", name: "Mochila", quantity: 1, weight: 0.75, equipped: true, description: "Com uma pista" }];
     source.portraitAssetId = "private-asset-from-another-campaign";
     const before = structuredClone(source);
     const document = parseSheetImport(JSON.stringify(exported(source), null, 2));
@@ -25,7 +26,7 @@ test("current JSON exports restore all six systems as new sheets with current re
     assert.equal(restored.type, type);
     assert.equal(restored.system, system.id);
     assert.equal(restored.portraitAssetId, undefined);
-    for (const field of ["resources", "attributes", "skills", "attacks", "rituals", "abilities", "inventory", "notes", "defense"])
+    for (const field of ["resources", "attributes", "skills", "attacks", "rituals", "abilities", "inventory", "inventoryItems", "notes", "defense"])
       assert.deepEqual(restored[field], source[field], `${system.id}: ${field}`);
     assert.equal(sheetSchema.safeParse(restored).success, true);
     restored.resources.hp.current = 1;

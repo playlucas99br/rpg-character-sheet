@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { parseFormula } from "./dice.ts";
+import { inventoryItemsSchema } from "./inventory.ts";
 export const systemSchema = z.enum([
   "ordem",
   "jujutsu",
@@ -106,6 +107,7 @@ export const sheetSchema = z
       )
       .max(40),
     inventory: z.string().max(12000),
+    inventoryItems: inventoryItemsSchema.optional(),
     notes: z.string().max(20000),
     description: z.string().max(4000),
     tone: z.enum(["blue", "violet", "rose", "amber", "green"]),
