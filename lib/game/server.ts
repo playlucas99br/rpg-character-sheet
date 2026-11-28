@@ -9,11 +9,16 @@ import type {
   Workspace,
 } from "./types";
 import { canEditSheet, canSeeRoll } from "./access";
-import { campaignSchema, sheetSchema } from "./validation";
+import { campaignSchema, duplicateSheetSchema, sheetSchema } from "./validation";
+import { makeSheetCopy } from "./duplicate-sheet";
+import { makeImportedSheet, validateSheetImport } from "./sheet-import";
 import { newSheet, systemById } from "./systems";
 import { resolveRoll } from "./dice";
 import { ORDEM_RITUALS, ORDEM_WEAPONS } from "./ordem-library";
 import { GameError } from "./errors";
+import { resourceSpendWarning } from "./quick-actions";
+import { ENCOUNTER_ACTIONS, isEncounterAction } from "./encounters";
+import { encountersFor, mutateEncounter } from "./encounter-server";
 import { database, preparePersistence } from "./persistence";
 export { GameError, database };
 
@@ -136,6 +141,7 @@ export async function workspaceFor(
     campaigns,
     sheets: sheetRows.map(hydrateSheet),
     rolls,
+    encounters: await encountersFor(user),
     user: { id: user.id, name: profile?.name ?? user.name },
   };
 }
@@ -206,13 +212,17 @@ export async function mutate(user: User, input: Record<string, unknown>) {
       "rotate_invite",
       "remove_member",
       "create_sheet",
+      "import_sheet",
+      "duplicate_sheet",
       "update_sheet",
       "resource",
       "delete_sheet",
       "roll",
       "profile",
+      ...ENCOUNTER_ACTIONS,
     ])
     .parse(input.action);
+  if (isEncounterAction(action)) return mutateEncounter(user, input);
   if (action === "create_campaign") {
     const c = campaignSchema.parse(input.campaign),
       id = crypto.randomUUID();
@@ -365,6 +375,39 @@ export async function mutate(user: User, input: Record<string, unknown>) {
       .run();
     return { id: sheet.id };
   }
+  if (action === "import_sheet") {
+    const document = validateSheetImport(input.document);
+    const campaignId = idSchema.parse(input.campaignId);
+    const role = await membership(user.id, campaignId);
+    if (document.sheet.type === "monster" && role !== "gm")
+      throw new GameError("Somente o mestre pode importar criaturas.", 403);
+    const campaign = await db.prepare("SELECT system FROM campaigns WHERE id=?").bind(campaignId).first<{ system: Sheet["system"] }>();
+    if (!campaign || campaign.system !== document.sheet.system)
+      throw new GameError("Escolha uma campanha do mesmo sistema da ficha.");
+    const ownerId = role === "gm" && document.sheet.type === "character" && input.ownerId ? idSchema.parse(input.ownerId) : user.id;
+    await membership(ownerId, campaignId);
+    const owner = await db.prepare("SELECT name FROM profiles WHERE id = ?").bind(ownerId).first<{ name: string }>();
+    const sheet = makeImportedSheet(document, campaignId, { id: ownerId, name: owner?.name || user.name }, z.string().trim().min(1).max(100).parse(input.name), now);
+    await db
+      .prepare("INSERT INTO sheets (id,campaign_id,owner_id,type,data,version,updated_at) VALUES (?,?,?,?,?,1,?)")
+      .bind(sheet.id, campaignId, ownerId, sheet.type, JSON.stringify(sheet), now)
+      .run();
+    return { id: sheet.id };
+  }
+  if (action === "duplicate_sheet") {
+    const value = duplicateSheetSchema.parse(input);
+    const source = await ownedSheet(user.id, value.sheetId);
+    if (source.version !== value.version)
+      throw new GameError("A ficha mudou. Sincronize e confira os valores antes de duplicar.", 409);
+    const sheet = makeSheetCopy(source, value.name, now);
+    await db
+      .prepare(
+        "INSERT INTO sheets (id,campaign_id,owner_id,type,data,version,updated_at) VALUES (?,?,?,?,?,1,?)",
+      )
+      .bind(sheet.id, sheet.campaignId, sheet.ownerId, sheet.type, JSON.stringify(sheet), now)
+      .run();
+    return { id: sheet.id };
+  }
   if (
     action === "update_sheet" ||
     action === "resource" ||
@@ -378,6 +421,8 @@ export async function mutate(user: User, input: Record<string, unknown>) {
     if (action === "resource") {
       const key = z.enum(["hp", "ep", "sanity"]).parse(input.key),
         delta = z.number().int().min(-9999).max(9999).parse(input.delta);
+      const warning = resourceSpendWarning(sheet, key, delta, systemById(sheet.system).resourceLabels[key]);
+      if (warning) throw new GameError(warning);
       const r = sheet.resources[key];
       sheet.resources[key] = {
         ...r,

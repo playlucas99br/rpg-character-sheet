@@ -1,0 +1,65 @@
+@media screen {
+  .master-quick-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .master-quick-actions label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    color: var(--muted);
+    font-size: var(--reading-label);
+  }
+  .master-quick-actions input {
+    width: 7rem;
+    min-width: 0;
+    min-height: var(--touch-target);
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: var(--reading-body);
+  }
+  .master-quick-actions .button {
+    display: inline-flex;
+    min-width: var(--touch-target);
+    min-height: var(--touch-target);
+    font-size: var(--reading-label);
+  }
+  .master-quick-actions input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+  .master-quick-actions .master-quick-feedback {
+    flex-basis: 100%;
+    margin: 0;
+    color: var(--muted);
+    font-size: var(--reading-label);
+    line-height: 1.5;
+  }
+}
+
+@media screen and (max-width: 520px) {
+  .master-quick-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .master-quick-actions label,
+  .master-quick-actions .master-quick-feedback {
+    grid-column: 1 / -1;
+  }
+  .master-quick-actions input {
+    width: 100%;
+  }
+  .master-quick-actions .button {
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}

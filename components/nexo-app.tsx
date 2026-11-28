@@ -13,6 +13,7 @@ import {
   Dices,
   Eye,
   EyeOff,
+  FileUp,
   FlaskConical,
   FolderOpen,
   History,
@@ -43,8 +44,14 @@ import { createDemo } from "../lib/game/demo";
 import { newSheet, SYSTEMS, systemById } from "../lib/game/systems";
 import { resolveRoll } from "../lib/game/dice";
 import { ORDEM_RITUALS, ORDEM_WEAPONS } from "../lib/game/ordem-library";
-import { campaignSchema, sheetSchema } from "../lib/game/validation";
+import { campaignSchema, duplicateSheetSchema, sheetSchema } from "../lib/game/validation";
+import { makeSheetCopy, suggestedCopyName } from "../lib/game/duplicate-sheet";
+import { makeImportedSheet, validateSheetImport } from "../lib/game/sheet-import";
 import { canReadSheet } from "../lib/game/access";
+import { masterPanelFor } from "../lib/game/master-panel";
+import { resourceSpendWarning } from "../lib/game/quick-actions";
+import { isEncounterAction } from "../lib/game/encounters";
+import { mutateDemoEncounter } from "../lib/game/encounter-demo";
 import {
   Button,
   Die,
@@ -71,7 +78,11 @@ import OrdemLibrary from "./ordem-library";
 import SignIn from "./sign-in";
 import SyncIndicator, { SyncNotice } from "./sync-status";
 import CampaignAssets from "./campaign-assets";
+import CampaignMasterPanel from "./campaign-master-panel";
+import CampaignEncounters from "./campaign-encounters";
 import DashboardResume from "./dashboard-resume";
+import DuplicateSheetForm from "./duplicate-sheet-form";
+import ImportSheetForm from "./import-sheet-form";
 import { activityKey, resumeTargets } from "../lib/game/recent-activity";
 import { useRecentActivity } from "../lib/game/use-recent-activity";
 import { useCampaignRealtime } from "../lib/game/use-campaign-realtime";
@@ -88,6 +99,7 @@ type Page =
   | "systems"
   | "campaign"
   | "tabletop"
+  | "master-panel"
   | "sheet";
 type Route = { page: Page; id?: string };
 type ModalState = {
@@ -95,6 +107,8 @@ type ModalState = {
     | "campaign"
     | "join"
     | "new-sheet"
+    | "duplicate-sheet"
+    | "import-sheet"
     | "edit-campaign"
     | "members"
     | "dice"
@@ -102,6 +116,7 @@ type ModalState = {
     | "profile";
   campaignId?: string;
   sheetType?: Sheet["type"];
+  sheetId?: string;
   system?: SystemId;
 } | null;
 type Result = { id?: string; roll?: Roll };
@@ -169,6 +184,23 @@ function demoMutation(
     if (!sheet.name) throw new Error("Informe o nome.");
     state.sheets.unshift(sheet);
     result = { id: sheet.id };
+  } else if (input.action === "import_sheet") {
+    const document = validateSheetImport(input.document);
+    const campaign = state.campaigns.find((c) => c.id === input.campaignId);
+    if (!campaign || campaign.system !== document.sheet.system) throw new Error("Escolha uma campanha do mesmo sistema da ficha.");
+    if (document.sheet.type === "monster" && campaign.role !== "gm") throw new Error("Somente o mestre pode importar criaturas.");
+    const owner = campaign.role === "gm" && document.sheet.type === "character" ? campaign.members.find((m) => m.id === input.ownerId) || DEMO_USER : DEMO_USER;
+    const sheet = makeImportedSheet(document, campaign.id, owner, String(input.name || ""), now);
+    state.sheets.unshift(sheet);
+    result = { id: sheet.id };
+  } else if (input.action === "duplicate_sheet") {
+    const value = duplicateSheetSchema.parse(input);
+    const source = state.sheets.find((s) => s.id === value.sheetId);
+    if (!source) throw new Error("Ficha não encontrada.");
+    if (source.version !== value.version) throw new Error("A ficha mudou. Confira os valores antes de duplicar.");
+    const copy = makeSheetCopy(source, value.name, now);
+    state.sheets.unshift(copy);
+    result = { id: copy.id };
   } else if (input.action === "update_sheet") {
     const index = state.sheets.findIndex((s) => s.id === input.sheetId);
     if (index < 0) throw new Error("Ficha não encontrada.");
@@ -180,11 +212,15 @@ function demoMutation(
       updatedAt: now,
     };
     result = { id: state.sheets[index].id };
+  } else if (isEncounterAction(input.action)) {
+    result = mutateDemoEncounter(state, input);
   } else if (input.action === "resource") {
     const s = state.sheets.find((s) => s.id === input.sheetId);
     if (!s) throw new Error("Ficha não encontrada.");
     const key = input.key as ResourceKey,
       r = s.resources[key];
+    const warning = resourceSpendWarning(s, key, Number(input.delta), systemById(s.system).resourceLabels[key]);
+    if (warning) throw new Error(warning);
     r.current = Math.max(0, Math.min(r.max, r.current + Number(input.delta)));
     s.updatedAt = now;
     result = { id: s.id };
@@ -238,6 +274,7 @@ function readRoute(): Route {
       "systems",
       "campaign",
       "tabletop",
+      "master-panel",
       "sheet",
     ].includes(page || "")
       ? page
@@ -306,9 +343,12 @@ export default function NexoApp({
       s,
     ),
   ), [user.id, campaigns, raw.sheets]);
+  const currentCampaign = campaigns.find((c) => c.id === route.id);
+  const masterPanel = route.page === "master-panel" ? masterPanelFor(currentCampaign, sheets) : null;
   const recentActivity = useRecentActivity(
     activityKey(initialUser?.id, demo ? playerPreview ? "demo-player" : "demo-gm" : "account"),
-    route, campaigns, sheets, user.id, demo ? sampleLoaded : hasLoadedReal && syncStatus !== "expired",
+    masterPanel ? { page: "campaign", id: masterPanel.campaign.id } : route,
+    campaigns, sheets, user.id, demo ? sampleLoaded : hasLoadedReal && syncStatus !== "expired",
   );
   const resume = resumeTargets(recentActivity, campaigns, sheets, user.id);
   const resumeCampaign = resume.campaign;
@@ -318,9 +358,9 @@ export default function NexoApp({
       campaigns.find((c) => c.id === r.campaignId)?.role === "gm" ||
       r.userId === user.id,
   );
-  const currentCampaign = campaigns.find((c) => c.id === route.id),
-    currentSheet = sheets.find((s) => s.id === route.id),
-    modalCampaign = campaigns.find((c) => c.id === modal?.campaignId);
+  const currentSheet = sheets.find((s) => s.id === route.id),
+    modalCampaign = campaigns.find((c) => c.id === modal?.campaignId),
+    modalSheet = sheets.find((s) => s.id === modal?.sheetId);
   const notify = useCallback(
     (text: string, error = false) => setToast({ text, error }),
     [],
@@ -526,16 +566,24 @@ export default function NexoApp({
   const sheetCampaign = currentSheet
     ? campaigns.find((c) => c.id === currentSheet.campaignId)
     : null;
+  const activePage =
+    route.page === "campaign" || route.page === "master-panel" || route.page === "tabletop"
+      ? "campaigns"
+      : route.page === "sheet"
+        ? "sheets"
+        : route.page;
   const title =
     route.page === "tabletop"
       ? "Mesa virtual"
       : route.page === "campaign"
       ? currentCampaign?.name
-      : route.page === "sheet"
-        ? currentSheet?.name
-        : route.page === "systems"
-          ? "Biblioteca de sistemas"
-          : navigation.find((n) => n.page === route.page)?.label;
+      : route.page === "master-panel"
+        ? "Painel do mestre"
+        : route.page === "sheet"
+          ? currentSheet?.name
+          : route.page === "systems"
+            ? "Biblioteca de sistemas"
+            : navigation.find((n) => n.page === route.page)?.label;
   const diceProps = {
     campaigns,
     rolls,
@@ -582,7 +630,7 @@ export default function NexoApp({
           {navigation.map(({ page, label, Icon }) => (
             <button
               key={page}
-              className={`nav-item ${route.page === page || (page === "campaigns" && route.page === "campaign") || (page === "sheets" && route.page === "sheet") ? "active" : ""}`}
+              className={`nav-item ${activePage === page ? "active" : ""}`}
               onClick={() => navigate(page)}
             >
               <Icon size={18} />
@@ -1102,6 +1150,8 @@ export default function NexoApp({
                     onBack={() => navigate("campaigns")}
                     onSheet={(id) => navigate("sheet", id)}
                     onCreate={(type) => createSheet(type, currentCampaign.id)}
+                    onImport={() => setModal({ type: "import-sheet", campaignId: currentCampaign.id })}
+                    onMasterPanel={() => navigate("master-panel", currentCampaign.id)}
                     onEdit={() =>
                       setModal({
                         type: "edit-campaign",
@@ -1133,6 +1183,38 @@ export default function NexoApp({
                   <Tabletop campaign={currentCampaign} sheets={sheets.filter(s => s.campaignId === currentCampaign.id)} user={user} demo={demo} sheetBusy={busy} onResource={async (sheetId, key, delta) => !!(await mutation({ action: "resource", sheetId, key, delta }))} onBack={() => navigate("campaign", currentCampaign.id)} onSheet={id => navigate("sheet", id)} />
                 </Suspense>
               ) : <Empty title="Campanha não encontrada" description="Abra a mesa virtual a partir de uma campanha disponível."><Button onClick={() => navigate("campaigns")}>Ver campanhas</Button></Empty>)}
+              {route.page === "master-panel" &&
+                (masterPanel ? (
+                  <>
+                  <CampaignMasterPanel
+                    roster={masterPanel}
+                    onBack={() => navigate("campaign", masterPanel.campaign.id)}
+                    onSheet={(id) => navigate("sheet", id)}
+                    onWarning={(message) => notify(message, true)}
+                    busy={busy}
+                    onResource={async (sheetId, key, delta) => Boolean(await mutation({
+                      action: "resource", sheetId, key, delta,
+                    }))}
+                  />
+                  <CampaignEncounters
+                    key={masterPanel.campaign.id}
+                    campaign={masterPanel.campaign}
+                    sheets={sheets}
+                    encounters={raw.encounters}
+                    busy={busy}
+                    onAction={mutation}
+                  />
+                  </>
+                ) : (
+                  <Empty
+                    title="Painel indisponível"
+                    description="O painel é reservado ao mestre da campanha."
+                  >
+                    <Button onClick={() => navigate(currentCampaign ? "campaign" : "campaigns", currentCampaign?.id)}>
+                      {currentCampaign ? "Voltar à campanha" : "Voltar às campanhas"}
+                    </Button>
+                  </Empty>
+                ))}
               {(route.page === "sheets" || route.page === "bestiary") && (
                 <>
                   <PageHeading
@@ -1146,10 +1228,11 @@ export default function NexoApp({
                     }
                     description={
                       route.page === "bestiary"
-                        ? "Criaturas e ameaças das suas campanhas. Um espaço reservado ao mestre."
+                        ? "Criaturas e NPCs das suas campanhas. Um espaço reservado ao mestre."
                         : "Acompanhe seus personagens e as fichas das campanhas que você mestra."
                     }
                   >
+                    {(route.page !== "bestiary" || canCreateThreat) && <Button variant="secondary" className="import-sheet-trigger" onClick={() => setModal({ type: "import-sheet", campaignId: filter !== "all" ? filter : undefined })}><FileUp size={17} />Importar JSON</Button>}
                     {(route.page !== "bestiary" || canCreateThreat) && <Button
                       onClick={() =>
                         createSheet(
@@ -1159,7 +1242,7 @@ export default function NexoApp({
                     >
                       <Plus size={16} />
                       {route.page === "bestiary"
-                        ? "Nova criatura"
+                        ? "Criar criatura ou NPC"
                         : "Novo personagem"}
                     </Button>}
                   </PageHeading>
@@ -1244,6 +1327,7 @@ export default function NexoApp({
                     rolls={rolls}
                     busy={busy}
                     onBack={() => navigate("campaign", currentSheet.campaignId)}
+                    onDuplicate={() => setModal({ type: "duplicate-sheet", sheetId: currentSheet.id, campaignId: currentSheet.campaignId })}
                     onSave={async (s) => {
                       const result = await mutation({
                         action: "update_sheet",
@@ -1521,6 +1605,42 @@ export default function NexoApp({
               notify("Ficha criada. Dê vida à sua história.");
             }
             return !!result;
+          }}
+        />
+      )}
+      {modal?.type === "import-sheet" && (
+        <ImportSheetForm
+          campaigns={campaigns}
+          initialCampaignId={modal.campaignId}
+          user={user}
+          busy={busy}
+          onClose={() => setModal(null)}
+          onCreateCampaign={(system) => createCampaign(system)}
+          onImport={async (value) => {
+            const result = await mutation({ action: "import_sheet", ...value });
+            if (!result?.id) return false;
+            setModal(null);
+            navigate("sheet", result.id);
+            notify("Ficha importada. Sua nova ficha está pronta.");
+            return true;
+          }}
+        />
+      )}
+      {modal?.type === "duplicate-sheet" && modalSheet && modalCampaign && (
+        <DuplicateSheetForm
+          key={modalSheet.id}
+          sheet={modalSheet}
+          campaign={modalCampaign}
+          suggestedName={suggestedCopyName(modalSheet.name, sheets.filter((s) => s.campaignId === modalSheet.campaignId).map((s) => s.name))}
+          busy={busy}
+          onClose={() => setModal(null)}
+          onDuplicate={async (name) => {
+            const result = await mutation({ action: "duplicate_sheet", sheetId: modalSheet.id, name, version: modalSheet.version });
+            if (!result?.id) return false;
+            setModal(null);
+            navigate("sheet", result.id);
+            notify("Cópia criada. Sua nova ficha está pronta.");
+            return true;
           }}
         />
       )}

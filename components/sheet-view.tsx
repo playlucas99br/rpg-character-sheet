@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   ArrowUpRight,
   Brain,
+  Copy,
   Download,
   Dices,
   EyeOff,
@@ -242,6 +243,7 @@ export default function SheetView({
   onResource,
   onRoll,
   onDelete,
+  onDuplicate,
   notify,
 }: {
   sheet: Sheet;
@@ -257,6 +259,7 @@ export default function SheetView({
   onResource: (key: ResourceKey, delta: number) => Promise<boolean>;
   onRoll: (request: RollRequest) => void;
   onDelete: () => Promise<boolean>;
+  onDuplicate: () => void;
   notify: (message: string) => void;
 }) {
   const tabsId = useId();
@@ -339,6 +342,10 @@ export default function SheetView({
             <Button variant="secondary" onClick={() => setEditing("general")}>
               <Pencil size={15} />
               Editar ficha
+            </Button>
+            <Button variant="secondary" disabled={busy} onClick={onDuplicate}>
+              <Copy size={15} />
+              Duplicar ficha
             </Button>
           </div>
         </div>

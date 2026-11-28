@@ -86,3 +86,125 @@ O histórico contém somente até 12 identificadores de campanhas e fichas por c
 ## Aceite após integração
 
 Com uma conta real, abrir uma campanha e uma ficha, voltar à visão geral e recarregar. Confirmar os destaques e testar os atalhos. Trocar de conta no mesmo navegador e confirmar que somente conteúdo da conta atual aparece. Excluir a ficha ou remover a participação em uma campanha e verificar que o destaque escolhe outro item acessível.
+
+# T05 — Duplicação de fichas — 29/10/2026
+
+Base: `main` em `dc7e00bbd967ba8814f157883799a4b038e96478`, após a integração da T04. Branch `feat/t05-duplicate-sheets`, responsável Lucas.
+
+O botão **Duplicar ficha** abre uma confirmação com o nome sugerido, campanha e dono. Nomes como “Abissal (cópia)” e “Abissal (cópia 2)” permitem criar inimigos semelhantes sem preencher a ficha novamente. O nome pode ser editado, respeitando o limite de 100 caracteres e preservando Unicode válido. Após confirmar, a interface abre a nova ficha.
+
+A cópia preserva sistema, tipo, campanha, dono, atributos, recursos atuais, defesa, ataques, técnicas, rituais, inventário, anotações e retrato. Ela recebe novo UUID, versão 1 e nova data. Não altera a original e começa sem as rolagens e os rascunhos da outra ficha. O retrato compartilha o arquivo existente: a janela informa que excluir essa imagem remove o retrato de ambas. Não há cópia entre campanhas nem alteração de dono nesse fluxo.
+
+## Verificação da T05
+
+- 41 testes aprovados. Os novos cenários cobrem os seis sistemas, cópia profunda dos campos e detalhes de rituais, sugestões de nome, limites e Unicode, identidade independente, versão inicial, preservação da original e alterações separadas dos recursos/anotações.
+- A API real com SQLite confirmou a cópia persistida entre requisições, bloqueio de sessão ausente/terceiros/jogadores tentando copiar criaturas, validação de nomes e versões, `409` para origem desatualizada, dono/campanha/tipo forjados ignorados e revogação após remoção da campanha.
+- PostgreSQL/PGlite confirmou o uso do INSERT já autorizado, manutenção das permissões do retrato, leitura da imagem após excluir a ficha original e remoção das referências das cópias após excluir a imagem.
+- TypeScript, build Vinext/Sites, build Next.js/Vercel e bundle da Edge Function aprovados. As 23 consultas literais do servidor permaneceram iguais; não foi necessária migração, alteração de RLS ou novas credenciais.
+- Validação visual pendente: a revisão automática do navegador bloqueou o acesso à prévia por limite de uso. Nenhuma conferência de layout ou interação visual da T05 foi concluída. Os arquivos temporários de prévia não fazem parte do PR.
+
+## Backend publicado
+
+A função `nexo-game` do projeto `nexo-rpg` foi atualizada da versão 2 para a versão 3, estado `ACTIVE`. O código publicado foi lido novamente e corresponde ao bundle validado. A autenticação própria e a configuração anterior `verify_jwt=false` foram preservadas. Nenhum registro de jogador foi alterado para teste.
+
+Chamadas hospedadas sem sessão e com JWT inválido retornaram `401`, antes de qualquer gravação.
+
+## Aceite visual e com conta real
+
+Na prévia do PR, abrir um personagem e selecionar **Duplicar ficha**. Conferir o nome sugerido, cancelar e repetir confirmando. Verificar a abertura da cópia, recarregar, mudar PV/anotações nela e conferir a original. Repetir com uma criatura como mestre e confirmar que jogadores não a enxergam. Testar o formulário em 320 e 375 px, foco pelo teclado, nome vazio e nomes longos. Se houver retrato, conferir o aviso e a imagem compartilhada.
+
+# T06 — Importar fichas JSON — 26/11/2026
+
+Base: `main` em `a00775d0036cf16a53654cb50d974930ebe0f880`, após a integração da T05. Branch `feat/t06-import-json`, responsável Lucas.
+
+**Importar JSON** está disponível em Minhas fichas, Bestiário para mestres e na campanha. O formulário lê a exportação `nexo-sheet` versão 1, limita o arquivo a 128 KiB, mostra personagem/criatura e sistema e pede nome e campanha compatível. O mestre pode escolher o dono de um personagem entre os participantes. Sem campanha elegível, há um atalho para criar uma do sistema do arquivo. A importação sempre cria outra ficha, abre seu detalhe e preserva os recursos atuais, atributos, ataques, habilidades, rituais, inventário e anotações.
+
+IDs, conta, campanha, retrato, versão e data da exportação não são reutilizados como identidade. A nova ficha recebe UUID, versão 1 e nova data, sem histórico de rolagens nem rascunhos antigos. A interface informa que o retrato precisa ser enviado novamente. Não há sobrescrita nem repetição automática de gravações.
+
+## Verificação da T06
+
+- 47 testes passaram. Os novos cenários cobrem exportações dos seis sistemas como personagens e criaturas, cópia profunda, detalhes de rituais, BOM, exportações antigas sem rituais, formato/versão inválidos, limite em bytes UTF-8, atributos, referências de ataques, fórmulas e campos inválidos.
+- A API real com SQLite confirmou o INSERT independente, repetição do mesmo arquivo gerando outro ID, recursos/anotações preservados, ausência de rolagens herdadas e original intacta. Foram verificados sessão ausente, conta antiga, terceiros, sistema diferente, dono forjado, atribuição pelo mestre, criaturas privadas e remoção da campanha.
+- TypeScript, build Vinext/Sites, build Next.js/Vercel e bundle da Edge Function aprovados. As 23 consultas literais do servidor permaneceram iguais; nenhuma migração, política RLS, dependência ou credencial foi adicionada.
+- Navegador com `NexoApp` e CSS compilado em demonstração isolada: arquivo válido, prévia, nome obrigatório, destino do mesmo sistema, abertura da ficha, equipamentos/anotações, histórico vazio, recarga e alteração independente de PV. Arquivo de versão 99 recusado; visão de jogador não ofereceu destino para criatura.
+- Computador de 1363 px e janelas de conteúdo de 320, 375 e 768 px: sem rolagem horizontal do formulário. A conferência encontrou uma regra antiga que escondia botões secundários no celular; o atalho de importação recebeu regra própria e passou na nova conferência. Importação concluída em 320 px, com botões de pelo menos 44 px e campo de nome com fonte de 16 px. Nenhum erro do aplicativo foi capturado no console da demonstração.
+- A página temporária de QA importa os componentes reais e usa somente dados fictícios; não integra o PR. Essa conferência não comprova login ou persistência no Supabase hospedado.
+
+## Backend publicado
+
+A função `nexo-game` do projeto `nexo-rpg` foi atualizada para a versão 5, estado `ACTIVE`. A versão 4 anterior continha o mesmo código da versão 3 da T05. O código publicado foi lido novamente e corresponde ao bundle validado. A autenticação própria e `verify_jwt=false` foram preservados. Nenhum registro de jogador foi alterado para teste.
+
+Chamadas hospedadas sem sessão e com JWT inválido, incluindo o comando `import_sheet`, retornaram `401` antes de qualquer gravação.
+
+## Aceite com conta real
+
+Na prévia do PR, exportar um personagem, importar para uma campanha do mesmo sistema e recarregar. Conferir recursos/anotações e editar a nova ficha sem alterar a original. Como mestre, importar para outro participante e importar uma criatura; como jogador, confirmar que a criatura não aparece. Enviar o retrato novamente quando necessário. O fluxo positivo hospedado com contas reais ainda precisa desse aceite.
+
+# T08 — Ações rápidas no painel — 27/11/2026
+
+Base: `main` em `4c94d0f`, após a integração da T07. Branch `feat/t08-quick-actions`, responsável Lucas (Agente T08, com integração e revisão do coordenador).
+
+O painel do mestre permite informar uma quantidade inteira de 1 a 9999 e aplicar dano, cura ou gasto de energia e sanidade em personagens, criaturas e NPCs. O rótulo de energia acompanha o sistema. Gastos acima do saldo são rejeitados no cliente e no servidor, sem alterar valor ou versão; um toast informa o recurso disponível e a quantidade solicitada. Dano continua limitado a zero e cura ao máximo. Os controles ficam bloqueados durante a gravação. O resultado só é apresentado como salvo quando a operação é confirmada. Uma resposta incerta orienta sincronizar antes de repetir.
+
+## Verificação da T08
+
+- 55 testes aprovados, incluindo seis da T08. O teste de regressão primeiro reproduziu a aceitação indevida de gasto excessivo (HTTP 200); a correção passou a retornar 400, preservando saldo e versão. Cobertos gasto exato e saldo zero de energia e sanidade. A API real com SQLite confirmou o ajuste do mestre em personagem de jogador e criatura, a leitura atualizada pelo jogador, a versão incrementada e o conflito `409` ao tentar salvar um editor anterior ao ajuste. Também foram verificados limites dos recursos, sanidade preservada, sessão ausente, terceiros, isolamento de campanha, criatura privada e revogação de participação.
+- TypeScript, builds Next.js/Vercel e Vinext/Sites e bundle da Edge Function aprovados. O lint dos arquivos novos e do painel passou. O lint completo foi medido antes das alterações e já apresentava oito erros e sete avisos em módulos existentes; essas pendências não foram alteradas nesta tarefa.
+- Navegador Chromium com os componentes reais do `NexoApp` e seus estilos em demonstração isolada: dano, cura e gasto de energia concluídos, valores preservados após recarregar. Larguras de 320, 375, 768 e 1440 px sem rolagem horizontal; campos e botões de ações rápidas com altura mínima de 44 px. O harness e suas dependências temporárias não integram o PR.
+- Nenhuma mudança em consultas SQL, esquema, políticas, autenticação ou dependências do projeto. A validação de saldo usa a mesma lógica pura no painel, na demonstração e na API. O backend precisa do bundle atualizado para rejeitar chamadas diretas com gasto excessivo. NPCs usam a ficha privada existente de criaturas; não há reclassificação automática de personagens do mestre.
+
+## Aceite com contas reais
+
+Na prévia do PR, abrir o painel como mestre, aplicar dano a um personagem e conferir a ficha na sessão do jogador. Repetir com cura e gasto de energia, recarregar as duas sessões e verificar os limites. Como jogador, confirmar que o painel permanece reservado ao mestre. A validação local cobre a rota real e os componentes da demonstração; o fluxo positivo com contas reais e a entrega de eventos no serviço hospedado continuam pendentes.
+
+# T09 — Iniciativa e turnos — 27/11/2026
+
+Branch `feat/t09-encounters`, sobre a T08. O painel do mestre permite salvar encontros com participantes da campanha, informar iniciativa, desempatar pela ordem manual da preparação e iniciar, avançar e encerrar o combate. A primeira rodada é 1; voltar do último participante ao primeiro incrementa a rodada. Encontros encerrados ficam disponíveis para consulta. Cada encontro guarda o nome do participante para preservar o registro quando a ficha é excluída.
+
+A persistência usa a nova tabela privada `encounters`, com JSON e versão, nas migrações SQLite e Supabase. O mestre autoriza pela campanha armazenada no encontro; o servidor resolve os nomes das fichas, verifica a campanha de cada participante e recusa versões antigas com `409`. Jogadores recebem lista vazia. A migração Supabase eleva o schema para 3, registra cinco consultas literais novas, mantém RLS e bloqueio de acesso direto do navegador e envia apenas a invalidação de campanha pelo Realtime. Importações de origens D1 novas preservam também encontros; origens antigas sem a tabela continuam compatíveis.
+
+Verificações específicas: seis testes de lógica/API SQLite aprovados, cobrindo iniciativa, desempate, estados, rodadas, isolamento, campos forjados, nomes canônicos, retomada após reabrir o banco e concorrência. Dois testes PostgreSQL adicionais confirmaram o registro SQL, privacidade, gravação por versão, payload mínimo de Broadcast e importações D1 com e sem encontros. A API existente e o smoke de consolidação permaneceram aprovados.
+
+O modelo local da demonstração usa as mesmas regras de iniciativa e estado, separado das contas reais. O rollout exige aplicar a migração e atualizar a Edge Function antes de usar os novos comandos. O aceite com duas sessões reais no serviço hospedado permanece pendente.
+
+# T10 — Condições e duração — 27/11/2026
+
+Branch `feat/t10-conditions`, sobre a T09. Cada participante do encontro pode receber até 30 condições com nome e duração de 1 a 999 rodadas ou até remoção manual. A contagem diminui quando o último participante termina o turno e a rodada seguinte começa; a condição expira ao chegar a zero. Adicionar uma condição durante a rodada inclui a próxima virada nessa contagem. Condições podem ser preparadas antes do início e são preservadas ao editar nome, iniciativa ou ordem dos participantes mantidos. Encontros encerrados permitem consulta, sem novas alterações.
+
+Condições ficam no JSON privado do encontro, com o mesmo controle de versão e permissões da T09. Avançar rodada e reduzir/expirar condições é uma única gravação; a API não aplica efeitos sobre atributos, defesa ou recursos. Não há nova consulta SQL nem migração na T10.
+
+A suíte completa local passou em 68 testes, além de TypeScript. Quatro testes de condições cobrem validação, limites, identificadores, duração finita/indefinida e imutabilidade. A API real confirmou preservação na edição do rascunho, decremento somente na virada, expiração em duas rodadas, remoção manual, limite de 30, rejeição após encerramento, privacidade do mestre e concorrência entre adicionar condição e avançar turno (uma gravação e um conflito `409`). Recursos das fichas permaneceram iguais.
+
+O fluxo positivo com contas reais no serviço hospedado continua como aceite: abrir o mesmo encontro em duas sessões do mestre, aplicar condição e avançar rodada, conferindo a versão atualizada e a recusa de uma ação antiga.
+
+# Ajuste compartilhado — Modais e barras de rolagem — 27/11/2026
+
+Branch `fix/modal-layout-and-scroll`, sobre a T10. As modais mantêm o cabeçalho com X e o rodapé de ações visíveis; apenas o conteúdo rola. No editor, o campo desabilitado fica dentro da área de conteúdo e as ações de salvar, guardar ou descartar rascunho permanecem no mesmo formulário. Cliques e toques no fundo são ignorados para evitar saídas acidentais. Fechar pelo X ou Escape grava o rascunho local antes de sair; se o navegador negar armazenamento, a edição permanece aberta com aviso. Um arrasto iniciado dentro e solto fora não fecha a janela. Barras de rolagem acompanham o tema, com tratamento para alto contraste e impressão preservada.
+
+QA Chromium com os componentes reais da demonstração: editor em 320×568, 375×667, 768×360 e 1440×900; cabeçalho/X e todas as ações do rodapé visíveis antes e depois de rolar, sem rolagem horizontal. Também verificados os formulários de campanha e encontro. Confirmados cliques e toques fora sem fechamento, recuperação do rascunho ao sair por X/Escape, descarte, salvamento por botão e Enter, arrasto e armazenamento negado. Nenhum erro do aplicativo no navegador. Firefox, teclado virtual e contas hospedadas não foram revalidados.
+
+Verificação final do conjunto: 68 testes, TypeScript, builds Next.js/Vercel e Vinext/Sites e bundle Supabase aprovados. A conferência visual do combate cobriu 16 combinações de estado/largura (320, 375, 768 e 1440 px), iniciativa, desempate, duração/expiração, remoção manual, recarga, seleção de encontros, encerramento e acesso de jogador. O lint dos módulos novos passou; o lint completo permanece com sete erros e sete avisos anteriores. O ajuste da modal removeu o erro antigo de atualização de ref durante render.
+
+## Situação do backend em produção
+
+O backend foi atualizado para `nexo-game` versão 7, `ACTIVE`, após a autorização do proprietário. A migração de encontros foi aplicada e o schema 3 está pronto. O bloqueio anterior de autorização foi resolvido; a verificação da publicação está registrada na seção seguinte. A interface completa depende dos PRs #12 e #13 em `main`.
+
+# Ativação de T09/T10 em produção — 27/11/2026
+
+Após autorização do proprietário, a migração `campaign_encounters` foi aplicada em `20261127225523`. O arquivo local foi alinhado à versão registrada pelo serviço. Conferidos schema 3, tabela `nexo.encounters`, RLS e as cinco consultas do registro fechado.
+
+A função `nexo-game` foi publicada na versão 7, `ACTIVE`, com encontros e condições. O código lido novamente do serviço é idêntico ao bundle validado; a autenticação própria anterior foi preservada. O smoke administrativo de encontros passou no PostgreSQL hospedado, cobrindo criação com iniciativa zero, leitura exclusiva do mestre, JSON de condições, atualização por versão, rejeição de versão antiga, restrição do navegador e Broadcast sem dados privados. Registros e mensagens temporários foram integralmente desfeitos.
+
+Perfis/campanhas/participações/fichas/rolagens/assets permaneceram em 4/6/9/9/18/2 antes e depois; encontros reais permaneceram em zero. Nenhum registro existente foi alterado. O advisor manteve somente o aviso de proteção contra senhas vazadas já documentado.
+
+A suíte local passou em 69 testes, incluindo o novo smoke reproduzido em PGlite. O teste HTTP direto desta execução encontrou timeout de rede; a verificação de API com JWT de conta real continua como aceite do proprietário. O código publicado e a persistência do serviço foram conferidos independentemente.
+
+No GitHub, os PRs #10 e #11 estavam mesclados, enquanto #12 e #13 ainda estavam abertos. Os PRs restantes foram redirecionados para `main`, porque #11 havia sido mesclado na antiga branch da T08 e seus encontros ainda não estavam na principal. Para o frontend completo em produção, integrar #12 e depois #13. A prévia que já contém a tela de encontros pode usar o backend atualizado.
+
+# Proteção contra fechamento acidental das modais — 27/11/2026
+
+O componente compartilhado deixa de fechar ao clicar ou tocar no fundo. X, Escape e ações explícitas do rodapé continuam disponíveis. A mudança protege também formulários de campanha, encontros, importação e demais telas que reutilizam a modal; não exige alteração de contrato ou persistência.
+
+O teste de navegador primeiro reproduziu a falha: o diálogo desaparecia após clicar no fundo, quando deveria permanecer aberto com o texto não salvo. Após remover os handlers de fechamento por backdrop, a mesma verificação passou. QA Chromium em 320×568, 375×667, 768×360 e 1440×900 confirmou cliques/toques fora ignorados e texto preservado, X/Escape, recuperação e descarte de rascunho, salvar por botão/Enter, armazenamento negado e header/footer visíveis ao rolar. Campanha e encontro também preservaram seus campos/participantes após clicar fora. Nenhum erro de aplicativo foi capturado.
+
+TypeScript, três testes de sincronização/rascunho e builds Next.js/Vercel e Vinext/Sites aprovados. Lint do componente compartilhado sem erros, com apenas o aviso de imagem já existente.

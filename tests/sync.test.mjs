@@ -60,5 +60,9 @@ test("client confirms saves only on a valid API response and never retries a wri
     const state = { user: { id: "player", name: "Jogador" }, campaigns: [], sheets: [], rolls: [] };
     globalThis.fetch = async () => Response.json(state);
     assert.deepEqual(await requestGame(), state);
+    globalThis.fetch = async () => Response.json({ ...state, encounters: {} });
+    await assert.rejects(requestGame(), (error) => error.status === 502);
+    globalThis.fetch = async () => Response.json({ ...state, encounters: [] });
+    assert.deepEqual(await requestGame(), { ...state, encounters: [] });
   } finally { globalThis.fetch = original; }
 });

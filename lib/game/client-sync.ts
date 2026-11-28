@@ -49,7 +49,7 @@ export async function requestGame<T = Record<string, unknown>>(
       response.status,
     );
   }
-  if (!data.user?.id || !Array.isArray(data.campaigns) || !Array.isArray(data.sheets) || !Array.isArray(data.rolls)) {
+  if (!data.user?.id || !Array.isArray(data.campaigns) || !Array.isArray(data.sheets) || !Array.isArray(data.rolls) || (data.encounters !== undefined && !Array.isArray(data.encounters))) {
     throw new GameApiError("A resposta da sua conta está incompleta. Tente sincronizar novamente.", 502);
   }
   return data;

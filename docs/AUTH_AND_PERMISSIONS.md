@@ -21,6 +21,10 @@
 | Entrar por convite válido | Não | Sim | Sim | Sim; não perde papel existente |
 | Ver código/renovar convite/editar campanha/remover jogador | Não | Não | Não | Sim |
 | Ver/editar/excluir ficha de personagem | Não | Não | Somente própria | Todas da campanha |
+| Duplicar personagem | Não | Não | Somente própria, na mesma campanha | Todas da campanha, preservando o dono |
+| Duplicar criatura | Não | Não | Não | Sim, na mesma campanha e com acesso privado |
+| Importar personagem JSON | Não | Não | Como própria ficha em campanha do mesmo sistema | Para si ou participante existente, no mesmo sistema |
+| Importar criatura JSON | Não | Não | Não | Sim, como ficha própria e privada, no mesmo sistema |
 | Criar personagem para outro jogador | Não | Não | Não | Sim, para participante existente |
 | Criar/ver/editar/rolar monstros | Não | Não | Não | Sim |
 | Ajustar PV/PE/SAN e rolar ficha | Não | Não | Própria ficha | Qualquer ficha da campanha |
@@ -37,6 +41,20 @@
 | Consultar tabelas ou RPCs de jogo diretamente pelo SDK | Não | Não | Não | Não |
 
 O mestre não tem acesso global a campanhas alheias. Ser dono do projeto no painel Supabase/GitHub é uma permissão operacional externa, separada dos papéis do aplicativo. A demonstração usa dados fictícios locais e não concede privilégios no banco real.
+
+### Duplicação de fichas
+
+`duplicate_sheet` recebe o ID da ficha, a versão esperada e o nome da cópia. O servidor lê a original autorizada; campanha, tipo e dono vêm desse registro, nunca de campos enviados pelo navegador. A cópia recebe um UUID novo, versão 1 e nova data de atualização. O conteúdo salvo é clonado, incluindo os recursos atuais; rolagens e rascunhos continuam vinculados aos IDs de suas respectivas fichas. Uma versão desatualizada retorna `409`.
+
+O retrato usa o mesmo arquivo privado da campanha e mantém as permissões anteriores, pois a cópia preserva campanha, tipo e dono. Excluir a ficha original mantém o arquivo disponível; excluir a imagem remove sua referência de todas as fichas que a utilizam, conforme o fluxo de mídia existente. A janela de duplicação informa esse compartilhamento quando há retrato.
+
+### Importação de fichas JSON
+
+`import_sheet` aceita o envelope `nexo-sheet`, versão 1, com limite de 128 KiB em UTF-8. Cliente e servidor validam o conteúdo pelo schema de edição, sistema, tipo e atributos compatíveis. Versões desconhecidas, campos inválidos e fórmulas não suportadas são recusados antes do INSERT. Os detalhes dos rituais são validados e preservados também nas edições seguintes.
+
+A campanha de destino é escolhida entre as participações atuais do mesmo sistema; criaturas exigem papel de mestre. O jogador sempre importa para si. O mestre pode escolher um participante existente como dono de um personagem; criaturas ficam com o mestre que importa. O servidor reaplica todas essas regras e lê o nome do dono no perfil autorizado.
+
+IDs de ficha, campanha, dono e retrato, versões e datas vindos do arquivo não definem a identidade da nova ficha. Toda importação gera um UUID, versão 1 e nova data; usa somente INSERT e nunca altera uma ficha existente, mesmo com nome igual. Recursos atuais e conteúdo são preservados. Rolagens e rascunhos anteriores não são importados. O retrato deve ser enviado novamente, sem reutilizar referências privadas de outra campanha. Não há repetição automática da gravação após falha de rede; a janela orienta sincronizar e conferir as fichas antes de repetir.
 
 ## Controles aplicados
 
