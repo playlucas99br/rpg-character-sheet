@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "./readability.css";
+import "./tabletop.css";
 import "./quick-actions.css";
 import "./encounters.css";
 import "./conditions.css";
