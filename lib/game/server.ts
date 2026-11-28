@@ -17,6 +17,8 @@ import { resolveRoll } from "./dice";
 import { ORDEM_RITUALS, ORDEM_WEAPONS } from "./ordem-library";
 import { GameError } from "./errors";
 import { resourceSpendWarning } from "./quick-actions";
+import { adjustInventoryCounter, adjustInventoryCounterSchema } from "./inventory-counters";
+import { preserveSheetExtensions } from "./sheet-content";
 import { ENCOUNTER_ACTIONS, isEncounterAction } from "./encounters";
 import { encountersFor, mutateEncounter } from "./encounter-server";
 import { database, preparePersistence } from "./persistence";
@@ -215,6 +217,7 @@ export async function mutate(user: User, input: Record<string, unknown>) {
       "import_sheet",
       "duplicate_sheet",
       "update_sheet",
+      "adjust_inventory_counter",
       "resource",
       "delete_sheet",
       "roll",
@@ -408,6 +411,22 @@ export async function mutate(user: User, input: Record<string, unknown>) {
       .run();
     return { id: sheet.id };
   }
+  if (action === "adjust_inventory_counter") {
+    const value = adjustInventoryCounterSchema.parse(input);
+    const sheet = await ownedSheet(user.id, value.sheetId);
+    if (sheet.version !== value.version) throw new GameError("O inventário mudou. Sincronize antes de ajustar o contador.", 409);
+    const item = sheet.inventoryItems?.find((entry) => entry.id === value.itemId);
+    if (!item) throw new GameError("Item não encontrado nesta ficha.", 404);
+    try {
+      const adjusted = adjustInventoryCounter(item, value.operation, value.amount);
+      sheet.inventoryItems = sheet.inventoryItems!.map((entry) => entry.id === item.id ? adjusted : entry);
+    } catch (error) {
+      if (error instanceof z.ZodError) throw error;
+      throw new GameError(error instanceof Error ? error.message : "Não foi possível ajustar o contador.");
+    }
+    await saveSheet(sheet, value.version);
+    return { id: sheet.id };
+  }
   if (
     action === "update_sheet" ||
     action === "resource" ||
@@ -446,7 +465,7 @@ export async function mutate(user: User, input: Record<string, unknown>) {
         )
       )
         throw new GameError("Os atributos de Ordem devem ficar entre 0 e 10.");
-      Object.assign(sheet, content);
+      Object.assign(sheet, preserveSheetExtensions(sheet, content));
     }
     await saveSheet(sheet, sheet.version);
     return { id: sheet.id };

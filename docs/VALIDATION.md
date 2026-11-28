@@ -208,3 +208,19 @@ O componente compartilhado deixa de fechar ao clicar ou tocar no fundo. X, Escap
 O teste de navegador primeiro reproduziu a falha: o diálogo desaparecia após clicar no fundo, quando deveria permanecer aberto com o texto não salvo. Após remover os handlers de fechamento por backdrop, a mesma verificação passou. QA Chromium em 320×568, 375×667, 768×360 e 1440×900 confirmou cliques/toques fora ignorados e texto preservado, X/Escape, recuperação e descarte de rascunho, salvar por botão/Enter, armazenamento negado e header/footer visíveis ao rolar. Campanha e encontro também preservaram seus campos/participantes após clicar fora. Nenhum erro de aplicativo foi capturado.
 
 TypeScript, três testes de sincronização/rascunho e builds Next.js/Vercel e Vinext/Sites aprovados. Lint do componente compartilhado sem erros, com apenas o aviso de imagem já existente.
+# T11 — Inventário estruturado — 27/11/2026
+
+Itens opcionais em `sheets.data.inventoryItems` guardam nome, quantidade, peso unitário em kg, equipado e descrição. O texto anterior de equipamento continua em `inventory`, sem conversão ou remoção. O peso total é informativo e considera quantidade × peso unitário. Não há nova tabela nem regra automática de capacidade de carga.
+
+O editor, a ficha e a impressão mostram os itens. Rascunhos incluem o novo campo, aceitam fichas antigas sem ele e detectam conflitos; importação e cópia preservam os valores com estruturas independentes. Atualizações continuam exigindo propriedade da ficha ou papel de mestre e versão atual. Omissão do campo por um cliente antigo preserva os itens já salvos; uma lista vazia remove os itens explicitamente.
+
+Validação: 16 testes focados aprovados (itens, API, importação, cópia e rascunhos), TypeScript e builds Next.js/Vercel e Vinext/Sites aprovados. O lint dos módulos novos passou. O lint global mantém os 7 erros e 7 avisos anteriores, em componentes legados fora do escopo desta tarefa.
+
+# T12 — Munição e cargas — 27/11/2026
+
+Cada item pode ter um contador de munição, cargas ou usos de consumível, com nome opcional, saldo e máximo. Consumo e reposição são manuais, exatos e versionados; saldo insuficiente ou reposição acima do máximo rejeitam a operação inteira. A quantidade física e os ataques permanecem independentes do contador.
+
+Os dados ficam no JSON existente da ficha e usam o salvamento condicional e as permissões já existentes. Edições de clientes antigos preservam contadores omitidos pelo ID estável do item; `counter: null` remove explicitamente a configuração. Importação, cópia, rascunho e impressão preservam os contadores.
+
+Validação: 18 testes focados aprovados, incluindo a API real sobre SQLite, autorização, limites e conflitos; TypeScript, os dois builds e bundle Supabase aprovados. Lint dos módulos novos limpo. A T12 depende do inventário da T11 e seu PR deve ser integrado depois do PR #14.
+
