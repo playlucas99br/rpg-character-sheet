@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { parseFormula } from "./dice.ts";
+import { inventoryItemsSchema } from "./inventory.ts";
+import { optionalAbilityTrackingSchema } from "./techniques.ts";
 export const systemSchema = z.enum([
   "ordem",
   "jujutsu",
@@ -102,10 +104,12 @@ export const sheetSchema = z
           cost: z.number().int().min(0).max(9999),
           formula: z.union([formula, z.literal("")]),
           description: z.string().max(4000),
+          tracking: optionalAbilityTrackingSchema,
         }),
       )
       .max(40),
     inventory: z.string().max(12000),
+    inventoryItems: inventoryItemsSchema.optional(),
     notes: z.string().max(20000),
     description: z.string().max(4000),
     tone: z.enum(["blue", "violet", "rose", "amber", "green"]),

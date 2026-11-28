@@ -66,3 +66,35 @@ test("client confirms saves only on a valid API response and never retries a wri
     assert.deepEqual(await requestGame(), { ...state, encounters: [] });
   } finally { globalThis.fetch = original; }
 });
+
+test("inventory drafts recover for old sheets and detect independent and conflicting changes", () => {
+  const base = newSheet("jujutsu", "campaign", "player", "Jogador");
+  const item = { id: "sword", name: "Espada", quantity: 1, weight: 2, equipped: true, counter: { kind: "charges", current: 1, max: 2 } };
+  const value = { ...structuredClone(base), inventoryItems: [item] };
+  const draft = { base, value, savedAt: new Date().toISOString() };
+  assert.ok(hasDraftChanges(base, value));
+  const parsed = parseDraft(JSON.stringify(draft), base);
+  assert.ok(parsed);
+  const current = { ...structuredClone(base), version: 2, notes: "Nota nova" };
+  const recovered = reconcileDraft(parsed, current);
+  assert.deepEqual(recovered.conflicts, []);
+  assert.deepEqual(recovered.value.inventoryItems, [item]);
+  assert.equal(recovered.value.notes, current.notes);
+  const conflicting = { ...current, inventoryItems: [{ ...item, quantity: 3 }] };
+  assert.deepEqual(reconcileDraft(parsed, conflicting).conflicts, ["inventoryItems"]);
+  assert.equal(parseDraft(JSON.stringify({ ...draft, value: { ...value, inventoryItems: [{ ...item, quantity: -1 }] } }), base), null);
+});
+
+test("technique configuration drafts merge independent notes and protect newer spent uses", () => {
+  const base = newSheet("jujutsu", "campaign", "player", "Jogador");
+  base.abilities = [{ id: "power", name: "Técnica", cost: 1, formula: "", description: "" }];
+  const value = structuredClone(base);
+  value.abilities[0].tracking = { uses: { current: 2, max: 2 } };
+  const draft = { base, value, savedAt: new Date().toISOString() };
+  const current = { ...structuredClone(base), version: 2, notes: "Pista" };
+  const recovered = reconcileDraft(parseDraft(JSON.stringify(draft), current), current);
+  assert.deepEqual(recovered.conflicts, []);
+  assert.deepEqual(recovered.value.abilities, value.abilities);
+  current.abilities = [{ ...value.abilities[0], tracking: { uses: { current: 1, max: 2 } } }];
+  assert.deepEqual(reconcileDraft(draft, current).conflicts, ["abilities"]);
+});

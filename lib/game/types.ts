@@ -1,3 +1,6 @@
+import type { InventoryCounter } from "./inventory-counters";
+import type { AbilityTracking } from "./techniques";
+
 export type SystemId =
   | "ordem"
   | "jujutsu"
@@ -7,6 +10,15 @@ export type SystemId =
   | "custom";
 export type ResourceKey = "hp" | "ep" | "sanity";
 export type Resource = { current: number; max: number };
+export type InventoryItem = {
+  id: string;
+  name: string;
+  quantity: number;
+  weight: number;
+  equipped: boolean;
+  description?: string;
+  counter?: InventoryCounter | null;
+};
 export type Skill = {
   id: string;
   name: string;
@@ -28,6 +40,7 @@ export type Ability = {
   cost: number;
   formula: string;
   description: string;
+  tracking?: AbilityTracking | null;
 };
 export type KnownRitual = {
   id: string;
@@ -81,6 +94,7 @@ export type Sheet = {
   rituals: KnownRitual[];
   abilities: Ability[];
   inventory: string;
+  inventoryItems?: InventoryItem[];
   notes: string;
   description: string;
   tone: string;

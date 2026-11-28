@@ -50,6 +50,9 @@ import { makeImportedSheet, validateSheetImport } from "../lib/game/sheet-import
 import { canReadSheet } from "../lib/game/access";
 import { masterPanelFor } from "../lib/game/master-panel";
 import { resourceSpendWarning } from "../lib/game/quick-actions";
+import { adjustInventoryCounter, adjustInventoryCounterSchema } from "../lib/game/inventory-counters";
+import { preserveSheetExtensions } from "../lib/game/sheet-content";
+import { adjustTechniqueCounter, advanceTechniqueCooldowns, hasTechniqueTracking, resetCombatTechniques, techniqueControlSchema, useAbility as consumeAbility } from "../lib/game/techniques";
 import { isEncounterAction } from "../lib/game/encounters";
 import { mutateDemoEncounter } from "../lib/game/encounter-demo";
 import {
@@ -204,14 +207,45 @@ function demoMutation(
   } else if (input.action === "update_sheet") {
     const index = state.sheets.findIndex((s) => s.id === input.sheetId);
     if (index < 0) throw new Error("Ficha não encontrada.");
+    if (input.version !== state.sheets[index].version) throw new Error("A ficha mudou enquanto você editava. Sincronize e tente novamente.");
     const content = sheetSchema.parse(input.sheet);
     state.sheets[index] = {
       ...state.sheets[index],
-      ...content,
+      ...preserveSheetExtensions(state.sheets[index], content),
       version: state.sheets[index].version + 1,
       updatedAt: now,
     };
     result = { id: state.sheets[index].id };
+  } else if (input.action === "use_ability" || input.action === "technique_control") {
+    const s = state.sheets.find((sheet) => sheet.id === input.sheetId);
+    if (!s) throw new Error("Ficha não encontrada.");
+    if (input.version !== s.version) throw new Error("A ficha mudou. Sincronize antes de ajustar ou usar a técnica.");
+    let next: Sheet;
+    if (input.action === "use_ability") {
+      const ability = s.abilities.find((entry) => entry.id === input.abilityId);
+      if (!ability) throw new Error("Técnica não encontrada.");
+      if (ability.formula) throw new Error("Use a rolagem desta técnica para registrar o resultado junto ao gasto.");
+      next = consumeAbility(s, ability.id);
+    } else {
+      const control = techniqueControlSchema.parse(input.control);
+      next = control.kind === "reset_combat" ? resetCombatTechniques(s)
+        : control.kind === "advance_cooldown" ? advanceTechniqueCooldowns(s)
+          : adjustTechniqueCounter(s, control.abilityId, control.counterId, control.delta);
+    }
+    Object.assign(s, next, { version: s.version + 1, updatedAt: now });
+    result = { id: s.id };
+  } else if (input.action === "adjust_inventory_counter") {
+    const value = adjustInventoryCounterSchema.parse(input);
+    const s = state.sheets.find((sheet) => sheet.id === value.sheetId);
+    if (!s) throw new Error("Ficha não encontrada.");
+    if (s.version !== value.version) throw new Error("O inventário mudou. Sincronize antes de ajustar o contador.");
+    const item = s.inventoryItems?.find((entry) => entry.id === value.itemId);
+    if (!item) throw new Error("Item não encontrado nesta ficha.");
+    const adjusted = adjustInventoryCounter(item, value.operation, value.amount);
+    s.inventoryItems = s.inventoryItems!.map((entry) => entry.id === item.id ? adjusted : entry);
+    s.version += 1;
+    s.updatedAt = now;
+    result = { id: s.id };
   } else if (isEncounterAction(input.action)) {
     result = mutateDemoEncounter(state, input);
   } else if (input.action === "resource") {
@@ -241,9 +275,9 @@ function demoMutation(
     const rolled = resolveRoll(s, request);
     if (s && request.kind === "ability") {
       const a = s.abilities.find((a) => a.id === request.id)!;
-      if (s.resources.ep.current < a.cost)
-        throw new Error("Energia insuficiente para esta habilidade.");
-      s.resources.ep.current -= a.cost;
+      if ((hasTechniqueTracking(a) || input.version !== undefined) && input.version !== s.version)
+        throw new Error("A ficha mudou. Confira os usos antes de tentar a técnica novamente.");
+      Object.assign(s, consumeAbility(s, a.id), { version: s.version + 1, updatedAt: now });
     }
     const roll: Roll = {
       ...rolled,
@@ -541,6 +575,7 @@ export default function NexoApp({
       sheetId,
       request,
       visibility,
+      ...(request.kind === "ability" ? { version: sheets.find((sheet) => sheet.id === sheetId)?.version } : {}),
     });
     if (result?.roll) setRollResult(result.roll);
   }
@@ -1345,6 +1380,15 @@ export default function NexoApp({
                         key,
                         delta,
                       }))
+                    }
+                    onInventoryCounter={async (itemId, operation, amount) =>
+                      !!(await mutation({ action: "adjust_inventory_counter", sheetId: currentSheet.id, version: currentSheet.version, itemId, operation, amount }))
+                    }
+                    onUseAbility={async (abilityId) =>
+                      !!(await mutation({ action: "use_ability", sheetId: currentSheet.id, version: currentSheet.version, abilityId }))
+                    }
+                    onTechniqueControl={async (control) =>
+                      !!(await mutation({ action: "technique_control", sheetId: currentSheet.id, version: currentSheet.version, control }))
                     }
                     onRoll={(request) =>
                       void roll(
